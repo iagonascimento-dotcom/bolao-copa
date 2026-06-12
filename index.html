@@ -308,7 +308,7 @@
     <div class="subview active" id="subCadastrar">
       <div class="info-box">
         Preencha seus dados e seu palpite de placar. Em caso de empate na pontuação,
-        ganha quem acertar <b>qual jogador marcaria gol</b>.
+        ganha quem acertar <b>mais jogadores que marcaram gol</b>.
       </div>
       <div class="card">
         <div class="field">
@@ -340,9 +340,9 @@
           </div>
         </div>
         <div class="field">
-          <label for="pGol">Jogador que vai marcar gol (desempate)</label>
-          <select id="pGol"><option value="">Selecione um jogador...</option></select>
-          <div class="hint">Usado só pra desempatar se muita gente acertar o placar.</div>
+          <label>Jogadores que vão marcar gol (desempate)</label>
+          <div id="pGol" class="goleadores-list"></div>
+          <div class="hint">Marque um ou mais. Quanto mais goleadores você acertar, melhor no desempate.</div>
         </div>
         <button class="btn btn-gold" id="btnPalpite" onclick="salvarPalpite()">✓ Confirmar palpite</button>
       </div>
@@ -582,14 +582,14 @@ async function abrirJogo(id){
   document.getElementById('lblFora').textContent=j.time_fora;
   document.getElementById('rLblCasa').textContent=j.time_casa;
   document.getElementById('rLblFora').textContent=j.time_fora;
-  // monta dropdown de jogadores das duas seleções (desempate)
-  montarDropdownGol(j);
-  montarListaGoleadores(j);
+  // monta as listas de jogadores das duas seleções (palpite e apuração)
+  montarChecklist('pGol',j);
+  montarChecklist('rGoleadores',j);
   // pré-preenche resultado se já finalizado
   if(j.finalizado){
     document.getElementById('rCasa').value=j.placar_casa;
     document.getElementById('rFora').value=j.placar_fora;
-    marcarGoleadores(j.goleadores);
+    marcarChecklist('rGoleadores',j.goleadores);
   }else{
     document.getElementById('rCasa').value='';
     document.getElementById('rFora').value='';
@@ -598,11 +598,11 @@ async function abrirJogo(id){
   showView('viewJogo');
 }
 
-/* monta a lista de checkboxes de goleadores (apuração) */
-function montarListaGoleadores(j){
+/* monta uma lista de checkboxes de jogadores das duas seleções num container */
+function montarChecklist(containerId,j){
   const sCasa=selecaoPorNome(j.time_casa);
   const sFora=selecaoPorNome(j.time_fora);
-  const cont=document.getElementById('rGoleadores');
+  const cont=document.getElementById(containerId);
   let html='';
   function grupo(nome,sel){
     if(!sel||!(sel.jogadores||[]).length)return'';
@@ -611,40 +611,21 @@ function montarListaGoleadores(j){
   }
   html+=grupo(j.time_casa,sCasa);
   html+=grupo(j.time_fora,sFora);
-  if(!html)html='<div class="gol-empty">Cadastre os elencos na aba "Elencos" para marcar os goleadores.</div>';
+  if(!html)html='<div class="gol-empty">Cadastre os elencos na aba "Elencos" para marcar os jogadores.</div>';
   cont.innerHTML=html;
 }
 
-/* marca os checkboxes conforme string salva */
-function marcarGoleadores(str){
+/* marca os checkboxes de um container conforme string salva */
+function marcarChecklist(containerId,str){
   const nomes=(str||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
-  document.querySelectorAll('#rGoleadores input[type=checkbox]').forEach(cb=>{
+  document.querySelectorAll(`#${containerId} input[type=checkbox]`).forEach(cb=>{
     cb.checked=nomes.includes(cb.value.toLowerCase());
   });
 }
 
-/* lê os goleadores marcados */
-function lerGoleadores(){
-  return Array.from(document.querySelectorAll('#rGoleadores input:checked')).map(cb=>cb.value).join(', ');
-}
-
-/* monta o <select> de jogadores com base nas duas seleções do jogo */
-function montarDropdownGol(j){
-  const sCasa=selecaoPorNome(j.time_casa);
-  const sFora=selecaoPorNome(j.time_fora);
-  const sel=document.getElementById('pGol');
-  let html='<option value="">Selecione um jogador...</option>';
-  if(sCasa&&(sCasa.jogadores||[]).length){
-    html+=`<optgroup label="${esc(j.time_casa)}">`+sCasa.jogadores.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')+'</optgroup>';
-  }
-  if(sFora&&(sFora.jogadores||[]).length){
-    html+=`<optgroup label="${esc(j.time_fora)}">`+sFora.jogadores.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')+'</optgroup>';
-  }
-  // se nenhuma seleção tem elenco, deixa opção genérica
-  if(!sCasa&&!sFora){
-    html+='<option value="" disabled>Cadastre os elencos na aba "Elencos"</option>';
-  }
-  sel.innerHTML=html;
+/* lê os marcados de um container como string separada por vírgula */
+function lerChecklist(containerId){
+  return Array.from(document.querySelectorAll(`#${containerId} input:checked`)).map(cb=>cb.value).join(', ');
 }
 
 /* ====================== SALVAR PALPITE ====================== */
@@ -656,7 +637,7 @@ async function salvarPalpite(){
   const tel=document.getElementById('pTel').value.trim();
   const casa=document.getElementById('pCasa').value;
   const fora=document.getElementById('pFora').value;
-  const gol=document.getElementById('pGol').value.trim();
+  const gol=lerChecklist('pGol');
   if(!nome){toast('Informe seu nome',"err");return;}
   if(!tel||tel.replace(/\D/g,'').length<10){toast('Telefone inválido',"err");return;}
   if(casa===''||fora===''){toast('Preencha o placar do palpite',"err");return;}
@@ -668,7 +649,8 @@ async function salvarPalpite(){
   btn.disabled=false;btn.textContent='✓ Confirmar palpite';
   if(error){toast('Erro ao salvar',"err");console.error(error);return;}
   toast('Palpite registrado! Boa sorte 🍀',"ok");
-  ['pNome','pBloco','pApto','pTel','pCasa','pFora','pGol'].forEach(id=>document.getElementById(id).value='');
+  ['pNome','pBloco','pApto','pTel','pCasa','pFora'].forEach(id=>document.getElementById(id).value='');
+  document.querySelectorAll('#pGol input:checked').forEach(cb=>cb.checked=false);
 }
 
 /* ====================== LISTA DE PALPITES ====================== */
@@ -702,7 +684,7 @@ async function gerarResultado(){
   const j=jogoAtual;if(!j)return;
   const casa=document.getElementById('rCasa').value;
   const fora=document.getElementById('rFora').value;
-  const gols=lerGoleadores();
+  const gols=lerChecklist('rGoleadores');
   if(casa===''||fora===''){toast('Preencha o placar final',"err");return;}
   const btn=document.getElementById('btnGerar');btn.disabled=true;btn.textContent='Apurando...';
   const {error}=await sb.from('bolao_jogos').update({
@@ -740,19 +722,19 @@ async function calcularRanking(){
     if(p.palpite_casa===rc&&p.palpite_fora===rf)pts=3;
     else if(pWin===resWin&&(p.palpite_casa-p.palpite_fora)===resSaldo)pts=2;
     else if(pWin===resWin)pts=1;
-    // desempate: acertou algum goleador
-    let acertouGol=false;
-    if(p.jogador_gol){
-      const g=p.jogador_gol.toLowerCase().trim();
-      acertouGol=goleadores.some(gl=>gl.includes(g)||g.includes(gl));
-    }
-    return {...p,pts,acertouGol,pWin};
+    // desempate: conta quantos goleadores a pessoa acertou
+    let golsAcertados=0;
+    const palpitados=(p.jogador_gol||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);
+    palpitados.forEach(g=>{
+      if(goleadores.some(gl=>gl===g))golsAcertados++;
+    });
+    return {...p,pts,golsAcertados,pWin};
   });
 
-  // ordena: pontos desc, depois acertou goleador, depois ordem de cadastro (mais cedo ganha)
+  // ordena: pontos desc, depois mais goleadores certos, depois ordem de cadastro (mais cedo ganha)
   ranked.sort((a,b)=>{
     if(b.pts!==a.pts)return b.pts-a.pts;
-    if(b.acertouGol!==a.acertouGol)return (b.acertouGol?1:0)-(a.acertouGol?1:0);
+    if(b.golsAcertados!==a.golsAcertados)return b.golsAcertados-a.golsAcertados;
     return new Date(a.created_at)-new Date(b.created_at);
   });
 
@@ -779,7 +761,7 @@ async function calcularRanking(){
         <div class="rank-name">${esc(r.nome)}</div>
         <div class="rank-meta">${un||'—'} · ${esc(r.telefone)}</div>
         ${r.palpite_casa===rc&&r.palpite_fora===rf?'<div class="rank-meta">🎯 Acertou o placar exato</div>':`<div class="rank-meta">Palpite: ${r.palpite_casa}×${r.palpite_fora}</div>`}
-        ${r.acertouGol?'<div class="rank-meta">⚽ Acertou o goleador</div>':''}
+        ${r.golsAcertados>0?`<div class="rank-meta">⚽ Acertou ${r.golsAcertados} ${r.golsAcertados===1?'goleador':'goleadores'}</div>`:''}
         ${winner?'<span class="kit-badge">🎁 Ganhou kit</span>':''}
       </div>
       <div class="rank-pts"><div class="big">${r.pts}</div><div class="lbl">pts</div></div>
@@ -790,9 +772,9 @@ async function calcularRanking(){
   if(comPontos.length>kits){
     const corte=comPontos[kits-1];
     const proximo=comPontos[kits];
-    if(corte && proximo && corte.pts===proximo.pts && corte.acertouGol===proximo.acertouGol){
+    if(corte && proximo && corte.pts===proximo.pts && corte.golsAcertados===proximo.golsAcertados){
       html+=`<div class="info-box" style="margin-top:14px;background:#fdf3d9;border-color:#f0d98a;color:#8a6d1e">
-        ⚠️ Há empate na linha de corte dos kits. O critério de desempate foi: <b>1º placar exato, 2º acertar o goleador, 3º quem cadastrou primeiro</b>. Confira manualmente se necessário.</div>`;
+        ⚠️ Há empate na linha de corte dos kits. O critério de desempate foi: <b>1º placar exato, 2º quem acertou mais goleadores, 3º quem cadastrou primeiro</b>. Confira manualmente se necessário.</div>`;
     }
   }
 
