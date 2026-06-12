@@ -187,6 +187,12 @@
   .gol-item:active{background:#f1efe8}
   .gol-item input{width:20px;height:20px;flex:none;accent-color:var(--campo)}
   .gol-empty{padding:14px;text-align:center;color:var(--cinza);font-size:.85rem}
+  /* blocos de seleção separados (palpite) */
+  .sel-block{border:1.5px solid var(--borda);border-radius:14px;overflow:hidden;margin-bottom:12px}
+  .sel-block-head{display:flex;align-items:center;gap:8px;background:var(--campo);color:#fff;padding:10px 14px;font-family:'Archivo Black';font-size:.92rem}
+  .sel-block-head .flag{font-size:1.2rem}
+  .sel-block-body{max-height:220px;overflow-y:auto;padding:6px}
+  .goleador-pill{display:inline-block;font-size:.74rem;font-weight:700;background:#eef5f1;color:var(--campo);border:1px solid #cfe6da;padding:3px 9px;border-radius:20px;margin:3px 3px 0 0}
   .rules-list{list-style:none;margin-top:8px}
   .rules-list li{padding:6px 0 6px 26px;position:relative;font-size:.86rem}
   .rules-list li::before{content:"⚽";position:absolute;left:0;top:5px;font-size:.85rem}
@@ -341,8 +347,8 @@
         </div>
         <div class="field">
           <label>Jogadores que vão marcar gol (desempate)</label>
-          <div id="pGol" class="goleadores-list"></div>
-          <div class="hint">Marque um ou mais. Quanto mais goleadores você acertar, melhor no desempate.</div>
+          <div id="pGol"></div>
+          <div class="hint">Marque um ou mais em cada seleção. Quanto mais goleadores você acertar, melhor no desempate.</div>
         </div>
         <button class="btn btn-gold" id="btnPalpite" onclick="salvarPalpite()">✓ Confirmar palpite</button>
       </div>
@@ -583,7 +589,7 @@ async function abrirJogo(id){
   document.getElementById('rLblCasa').textContent=j.time_casa;
   document.getElementById('rLblFora').textContent=j.time_fora;
   // monta as listas de jogadores das duas seleções (palpite e apuração)
-  montarChecklist('pGol',j);
+  montarBlocosPalpite('pGol',j);
   montarChecklist('rGoleadores',j);
   // pré-preenche resultado se já finalizado
   if(j.finalizado){
@@ -596,6 +602,24 @@ async function abrirJogo(id){
   }
   setTab('cadastrar');
   showView('viewJogo');
+}
+
+/* monta blocos separados por seleção (tela de palpite) */
+function montarBlocosPalpite(containerId,j){
+  const sCasa=selecaoPorNome(j.time_casa);
+  const sFora=selecaoPorNome(j.time_fora);
+  const cont=document.getElementById(containerId);
+  function bloco(nome,sel){
+    if(!sel||!(sel.jogadores||[]).length)return'';
+    return `<div class="sel-block">
+      <div class="sel-block-head"><span class="flag">${flag(nome)}</span> ${esc(nome)}</div>
+      <div class="sel-block-body">`+sel.jogadores.map(n=>
+        `<label class="gol-item"><input type="checkbox" value="${esc(n)}"> ${esc(n)}</label>`).join('')+
+      `</div></div>`;
+  }
+  let html=bloco(j.time_casa,sCasa)+bloco(j.time_fora,sFora);
+  if(!html)html='<div class="gol-empty" style="border:1.5px solid var(--borda);border-radius:12px">Cadastre os elencos na aba "Elencos" para marcar os jogadores.</div>';
+  cont.innerHTML=html;
 }
 
 /* monta uma lista de checkboxes de jogadores das duas seleções num container */
@@ -755,14 +779,24 @@ async function calcularRanking(){
     const winner=i<kits;
     const un=[r.bloco?'Bl '+esc(r.bloco):'',r.apartamento?'Ap '+esc(r.apartamento):''].filter(Boolean).join(' · ');
     const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+    const placarExato=r.palpite_casa===rc&&r.palpite_fora===rf;
+    // pills dos goleadores que a pessoa palpitou (✓ se acertou)
+    const palpitados=(r.jogador_gol||'').split(',').map(s=>s.trim()).filter(Boolean);
+    let golsPills='';
+    if(palpitados.length){
+      golsPills='<div style="margin-top:4px">'+palpitados.map(nome=>{
+        const acertou=goleadores.some(gl=>gl===nome.toLowerCase());
+        return `<span class="goleador-pill" style="${acertou?'background:#d6f0e0;border-color:#7fd0a3':'opacity:.6'}">${acertou?'✓ ':''}${esc(nome)}</span>`;
+      }).join('')+'</div>';
+    }
     html+=`<div class="rank-item ${winner?'winner':''}">
       <div class="rank-pos">${medal}</div>
       <div class="rank-info">
         <div class="rank-name">${esc(r.nome)}</div>
         <div class="rank-meta">${un||'—'} · ${esc(r.telefone)}</div>
-        ${r.palpite_casa===rc&&r.palpite_fora===rf?'<div class="rank-meta">🎯 Acertou o placar exato</div>':`<div class="rank-meta">Palpite: ${r.palpite_casa}×${r.palpite_fora}</div>`}
-        ${r.golsAcertados>0?`<div class="rank-meta">⚽ Acertou ${r.golsAcertados} ${r.golsAcertados===1?'goleador':'goleadores'}</div>`:''}
-        ${winner?'<span class="kit-badge">🎁 Ganhou kit</span>':''}
+        <div class="rank-meta">Palpite de placar: <b style="color:var(--campo)">${esc(j.time_casa)} ${r.palpite_casa}×${r.palpite_fora} ${esc(j.time_fora)}</b>${placarExato?' 🎯':''}</div>
+        ${palpitados.length?`<div class="rank-meta" style="margin-top:6px">Goleadores palpitados (${r.golsAcertados}/${palpitados.length} certos):</div>${golsPills}`:'<div class="rank-meta">Não palpitou goleador</div>'}
+        ${winner?'<span class="kit-badge" style="margin-top:6px">🎁 Ganhou kit</span>':''}
       </div>
       <div class="rank-pts"><div class="big">${r.pts}</div><div class="lbl">pts</div></div>
     </div>`;
