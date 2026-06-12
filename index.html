@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Bolão da Copa 2026 · Roda Conveniência</title>
+<meta name="theme-color" content="#0a3d2e" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --campo:#0a3d2e;        /* verde campo escuro */
+    --campo-2:#0f5239;      /* verde médio */
+    --linha:#1d7a57;        /* verde linha */
+    --ouro:#f4c542;         /* dourado troféu */
+    --ouro-2:#e0a92e;
+    --creme:#fbf7ed;        /* fundo claro */
+    --carvao:#16201b;       /* texto escuro */
+    --cinza:#6b7a72;
+    --branco:#ffffff;
+    --erro:#d64545;
+    --ok:#2e9e6b;
+    --borda:rgba(16,32,27,.12);
+    --sombra:0 6px 24px rgba(10,61,46,.12);
+    --raio:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family:'Archivo',system-ui,sans-serif;
+    background:var(--creme);
+    color:var(--carvao);
+    line-height:1.5;
+    overflow-x:hidden;
+  }
+  /* ===== HEADER ===== */
+  header{
+    position:sticky;top:0;z-index:50;
+    background:linear-gradient(160deg,var(--campo) 0%,var(--campo-2) 100%);
+    color:var(--branco);
+    padding:14px 18px;
+    box-shadow:0 2px 12px rgba(0,0,0,.18);
+  }
+  .head-row{display:flex;align-items:center;gap:12px;max-width:680px;margin:0 auto}
+  .logo-badge{
+    width:42px;height:42px;border-radius:12px;flex:none;
+    background:radial-gradient(circle at 30% 30%,var(--ouro),var(--ouro-2));
+    display:grid;place-items:center;font-size:22px;
+    box-shadow:0 3px 10px rgba(244,197,66,.4);
+  }
+  .head-titles h1{font-family:'Archivo Black';font-size:1.05rem;letter-spacing:.3px;line-height:1.1}
+  .head-titles p{font-size:.7rem;opacity:.78;font-weight:600;letter-spacing:1.5px;text-transform:uppercase}
+  .back-btn{
+    margin-left:auto;background:rgba(255,255,255,.12);border:none;color:#fff;
+    font-family:'Archivo';font-weight:700;font-size:.82rem;
+    padding:8px 14px;border-radius:10px;cursor:pointer;display:none;align-items:center;gap:6px;
+  }
+  .back-btn:active{background:rgba(255,255,255,.25)}
+  .back-btn.show{display:flex}
+
+  /* ===== LAYOUT ===== */
+  main{max-width:680px;margin:0 auto;padding:18px 16px 80px}
+  .view{display:none;animation:fade .35s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .eyebrow{font-size:.72rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--linha);margin-bottom:6px}
+  .section-title{font-family:'Archivo Black';font-size:1.5rem;line-height:1.1;margin-bottom:4px;color:var(--campo)}
+  .section-sub{color:var(--cinza);font-size:.92rem;margin-bottom:20px}
+
+  /* ===== CARDS ===== */
+  .card{
+    background:var(--branco);border:1px solid var(--borda);border-radius:var(--raio);
+    box-shadow:var(--sombra);padding:18px;margin-bottom:14px;
+  }
+  .game-card{cursor:pointer;transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden}
+  .game-card:active{transform:scale(.98)}
+  .game-card .pdv-tag{
+    display:inline-block;font-size:.66rem;font-weight:800;letter-spacing:.8px;text-transform:uppercase;
+    background:var(--campo);color:#fff;padding:4px 9px;border-radius:6px;margin-bottom:12px;
+  }
+  .game-card.fin .pdv-tag{background:var(--ouro-2)}
+  .match{display:flex;align-items:center;justify-content:center;gap:10px;margin:6px 0 12px}
+  .team{flex:1;text-align:center}
+  .team .flag{font-size:2rem;line-height:1}
+  .team .tname{font-family:'Archivo Black';font-size:.95rem;margin-top:4px;color:var(--carvao)}
+  .vs{font-family:'Archivo Black';color:var(--ouro-2);font-size:1.1rem}
+  .score-final{font-family:'Archivo Black';font-size:1.4rem;color:var(--campo)}
+  .game-meta{display:flex;align-items:center;justify-content:space-between;font-size:.82rem;color:var(--cinza);border-top:1px solid var(--borda);padding-top:10px;font-weight:600}
+  .chip-status{font-size:.7rem;font-weight:800;padding:4px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
+  .chip-aberto{background:#e6f6ee;color:var(--ok)}
+  .chip-fin{background:#fdf3d9;color:var(--ouro-2)}
+
+  /* ===== FORM ===== */
+  label{display:block;font-weight:700;font-size:.82rem;margin-bottom:6px;color:var(--carvao)}
+  .field{margin-bottom:16px}
+  input,select{
+    width:100%;font-family:'Archivo';font-size:1rem;padding:13px 14px;
+    border:1.5px solid var(--borda);border-radius:12px;background:var(--branco);color:var(--carvao);
+    transition:border-color .15s,box-shadow .15s;
+  }
+  input:focus,select:focus{outline:none;border-color:var(--linha);box-shadow:0 0 0 3px rgba(29,122,87,.15)}
+  select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%230a3d2e' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:40px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .placar-box{display:flex;align-items:center;justify-content:center;gap:14px;margin:8px 0}
+  .placar-box input{width:72px;text-align:center;font-family:'Archivo Black';font-size:1.6rem;padding:10px}
+  .placar-box .pteam{flex:1;text-align:center;font-family:'Archivo Black';font-size:.85rem;color:var(--campo)}
+  .placar-x{font-family:'Archivo Black';color:var(--ouro-2);font-size:1.3rem}
+  .hint{font-size:.78rem;color:var(--cinza);margin-top:4px}
+
+  /* ===== BUTTONS ===== */
+  .btn{
+    width:100%;font-family:'Archivo';font-weight:800;font-size:1rem;letter-spacing:.3px;
+    padding:15px;border:none;border-radius:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:transform .12s,filter .15s;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:linear-gradient(135deg,var(--campo),var(--linha));color:#fff;box-shadow:0 5px 16px rgba(10,61,46,.3)}
+  .btn-gold{background:linear-gradient(135deg,var(--ouro),var(--ouro-2));color:var(--campo);box-shadow:0 5px 16px rgba(224,169,46,.35)}
+  .btn-ghost{background:transparent;border:1.5px solid var(--borda);color:var(--campo)}
+  .btn-danger{background:#fff;border:1.5px solid var(--erro);color:var(--erro)}
+  .btn:disabled{opacity:.55;pointer-events:none}
+  .btn-sm{padding:10px 14px;font-size:.85rem;width:auto}
+
+  /* ===== TABS dentro do jogo ===== */
+  .tabs{display:flex;gap:8px;margin-bottom:18px;background:#eee7d6;padding:5px;border-radius:13px}
+  .tab{flex:1;text-align:center;padding:10px;border-radius:9px;font-weight:800;font-size:.82rem;cursor:pointer;color:var(--cinza);border:none;background:transparent;transition:all .15s}
+  .tab.active{background:var(--branco);color:var(--campo);box-shadow:0 2px 6px rgba(0,0,0,.08)}
+  .subview{display:none}
+  .subview.active{display:block}
+
+  /* ===== RANKING ===== */
+  .rank-item{display:flex;align-items:center;gap:14px;padding:14px;background:var(--branco);border:1px solid var(--borda);border-radius:14px;margin-bottom:10px;box-shadow:var(--sombra)}
+  .rank-item.winner{border-color:var(--ouro);background:linear-gradient(135deg,#fffdf5,#fdf6e0)}
+  .rank-pos{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-family:'Archivo Black';font-size:1rem;flex:none;background:#eee7d6;color:var(--campo)}
+  .rank-item.winner .rank-pos{background:linear-gradient(135deg,var(--ouro),var(--ouro-2));color:var(--campo)}
+  .rank-info{flex:1;min-width:0}
+  .rank-name{font-weight:800;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rank-meta{font-size:.78rem;color:var(--cinza)}
+  .rank-pts{text-align:right;flex:none}
+  .rank-pts .big{font-family:'Archivo Black';font-size:1.05rem;color:var(--campo)}
+  .rank-pts .lbl{font-size:.66rem;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px}
+  .kit-badge{font-size:.62rem;font-weight:800;background:var(--ouro);color:var(--campo);padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;margin-top:3px;display:inline-block}
+
+  /* ===== LISTA PALPITES ===== */
+  .palp-row{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--branco);border:1px solid var(--borda);border-radius:12px;margin-bottom:8px}
+  .palp-row .nm{font-weight:700;font-size:.9rem}
+  .palp-row .un{font-size:.76rem;color:var(--cinza)}
+  .palp-guess{font-family:'Archivo Black';color:var(--campo);font-size:1rem}
+
+  /* ===== EMPTY / LOADING ===== */
+  .empty{text-align:center;padding:48px 20px;color:var(--cinza)}
+  .empty .emo{font-size:3rem;margin-bottom:12px}
+  .empty p{font-size:.95rem}
+  .loader{text-align:center;padding:40px;color:var(--cinza);font-weight:600}
+  .spin{width:34px;height:34px;border:3px solid var(--borda);border-top-color:var(--linha);border-radius:50%;animation:rot .8s linear infinite;margin:0 auto 14px}
+  @keyframes rot{to{transform:rotate(360deg)}}
+
+  /* ===== TOAST ===== */
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(100px);
+    background:var(--carvao);color:#fff;padding:13px 22px;border-radius:30px;font-weight:700;font-size:.9rem;
+    box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:200;opacity:0;transition:all .35s;max-width:90vw;text-align:center}
+  #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+  #toast.ok{background:var(--ok)}
+  #toast.err{background:var(--erro)}
+
+  /* ===== MODAL ===== */
+  .modal-bg{position:fixed;inset:0;background:rgba(10,32,27,.6);z-index:150;display:none;align-items:flex-end;justify-content:center;padding:0}
+  .modal-bg.show{display:flex;animation:fade .2s}
+  .modal{background:var(--creme);width:100%;max-width:680px;border-radius:22px 22px 0 0;padding:22px 18px 30px;animation:slideup .3s ease;max-height:90vh;overflow-y:auto}
+  @keyframes slideup{from{transform:translateY(100%)}to{transform:none}}
+  .modal h3{font-family:'Archivo Black';font-size:1.2rem;color:var(--campo);margin-bottom:16px;text-align:center}
+  .modal-handle{width:42px;height:5px;background:var(--borda);border-radius:3px;margin:0 auto 16px}
+
+  /* ===== ADMIN toggle ===== */
+  .admin-bar{display:flex;gap:8px;margin-bottom:18px}
+  .seg{flex:1;text-align:center;padding:11px;border-radius:12px;font-weight:800;font-size:.85rem;cursor:pointer;border:1.5px solid var(--borda);background:var(--branco);color:var(--cinza)}
+  .seg.active{background:var(--campo);color:#fff;border-color:var(--campo)}
+
+  .info-box{background:#e6f6ee;border:1px solid #bfe6d2;border-radius:12px;padding:13px 15px;font-size:.85rem;color:var(--campo-2);margin-bottom:16px;line-height:1.55}
+  .info-box b{color:var(--campo)}
+  .rules-list{list-style:none;margin-top:8px}
+  .rules-list li{padding:6px 0 6px 26px;position:relative;font-size:.86rem}
+  .rules-list li::before{content:"⚽";position:absolute;left:0;top:5px;font-size:.85rem}
+
+  footer{text-align:center;padding:24px 16px;color:var(--cinza);font-size:.72rem}
+  footer b{color:var(--campo)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-row">
+    <div class="logo-badge">🏆</div>
+    <div class="head-titles">
+      <h1>Bolão da Copa 2026</h1>
+      <p>Roda Conveniência</p>
+    </div>
+    <button class="back-btn" id="backBtn" onclick="goHome()">‹ Voltar</button>
+  </div>
+</header>
+
+<main>
+  <!-- ====== VIEW: HOME / LISTA DE JOGOS ====== -->
+  <section class="view active" id="viewHome">
+    <div class="eyebrow">Ação do condomínio</div>
+    <h2 class="section-title">Jogos do Bolão</h2>
+    <p class="section-sub">Escolha um jogo para palpitar ou ver os ganhadores.</p>
+
+    <div class="admin-bar">
+      <div class="seg active" id="segJogos" onclick="setHomeMode('jogos')">⚽ Jogos</div>
+      <div class="seg" id="segAdmin" onclick="setHomeMode('admin')">⚙️ Cadastrar jogo</div>
+    </div>
+
+    <!-- modo jogos -->
+    <div id="homeJogos">
+      <div class="field">
+        <label for="filtroPdv">Filtrar por PDV</label>
+        <select id="filtroPdv" onchange="renderJogos()">
+          <option value="">Todos os PDVs</option>
+        </select>
+      </div>
+      <div id="listaJogos"><div class="loader"><div class="spin"></div>Carregando jogos...</div></div>
+    </div>
+
+    <!-- modo admin: cadastrar jogo -->
+    <div id="homeAdmin" style="display:none">
+      <div class="card">
+        <div class="field">
+          <label for="novoPdv">PDV (local da ação) *</label>
+          <select id="novoPdv"><option value="">Selecione o PDV...</option></select>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="timeCasa">Time da casa *</label>
+            <input id="timeCasa" placeholder="Ex: Brasil" />
+          </div>
+          <div class="field">
+            <label for="timeFora">Time visitante *</label>
+            <input id="timeFora" placeholder="Ex: Marrocos" />
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="dataJogo">Data do jogo *</label>
+            <input id="dataJogo" type="date" />
+          </div>
+          <div class="field">
+            <label for="horaJogo">Horário</label>
+            <input id="horaJogo" type="time" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="qtdKits">Quantidade de kits para sortear</label>
+          <input id="qtdKits" type="number" min="1" value="5" />
+          <div class="hint">Padrão: 5 kits. O Top 5 acertadores leva os kits.</div>
+        </div>
+        <button class="btn btn-primary" id="btnCriarJogo" onclick="criarJogo()">＋ Cadastrar jogo</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== VIEW: DETALHE DO JOGO ====== -->
+  <section class="view" id="viewJogo">
+    <div class="card" id="jogoHeader" style="text-align:center"></div>
+
+    <div class="tabs">
+      <button class="tab active" data-sub="cadastrar" onclick="setTab('cadastrar')">📝 Palpitar</button>
+      <button class="tab" data-sub="palpites" onclick="setTab('palpites')">👥 Palpites</button>
+      <button class="tab" data-sub="resultado" onclick="setTab('resultado')">🏆 Resultado</button>
+    </div>
+
+    <!-- SUB: cadastrar palpite -->
+    <div class="subview active" id="subCadastrar">
+      <div class="info-box">
+        Preencha seus dados e seu palpite de placar. Em caso de empate na pontuação,
+        ganha quem acertar <b>qual jogador marcaria gol</b>.
+      </div>
+      <div class="card">
+        <div class="field">
+          <label for="pNome">Nome completo *</label>
+          <input id="pNome" placeholder="Seu nome" />
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="pBloco">Bloco</label>
+            <input id="pBloco" placeholder="Ex: B" />
+          </div>
+          <div class="field">
+            <label for="pApto">Apartamento</label>
+            <input id="pApto" placeholder="Ex: 302" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="pTel">Telefone (WhatsApp) *</label>
+          <input id="pTel" type="tel" inputmode="numeric" placeholder="(21) 9 9999-9999" oninput="maskTel(this)" />
+        </div>
+        <div class="field">
+          <label>Seu palpite de placar *</label>
+          <div class="placar-box">
+            <div class="pteam" id="lblCasa">Casa</div>
+            <input id="pCasa" type="number" min="0" inputmode="numeric" placeholder="0" />
+            <span class="placar-x">×</span>
+            <input id="pFora" type="number" min="0" inputmode="numeric" placeholder="0" />
+            <div class="pteam" id="lblFora">Fora</div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="pGol">Jogador que vai marcar gol (desempate)</label>
+          <input id="pGol" placeholder="Ex: Vinícius Jr." />
+          <div class="hint">Usado só pra desempatar se muita gente acertar o placar.</div>
+        </div>
+        <button class="btn btn-gold" id="btnPalpite" onclick="salvarPalpite()">✓ Confirmar palpite</button>
+      </div>
+    </div>
+
+    <!-- SUB: lista de palpites -->
+    <div class="subview" id="subPalpites">
+      <div id="listaPalpites"><div class="loader"><div class="spin"></div>Carregando...</div></div>
+    </div>
+
+    <!-- SUB: resultado / gerar ganhadores -->
+    <div class="subview" id="subResultado">
+      <div class="card" id="resultadoAdmin">
+        <div class="eyebrow">Apuração</div>
+        <h3 style="font-family:'Archivo Black';color:var(--campo);font-size:1.1rem;margin-bottom:4px">Resultado final do jogo</h3>
+        <p class="hint" style="margin-bottom:14px">Lance o placar final e os jogadores que marcaram gol. Depois gere o ranking.</p>
+        <div class="field">
+          <label>Placar final *</label>
+          <div class="placar-box">
+            <div class="pteam" id="rLblCasa">Casa</div>
+            <input id="rCasa" type="number" min="0" inputmode="numeric" placeholder="0" />
+            <span class="placar-x">×</span>
+            <input id="rFora" type="number" min="0" inputmode="numeric" placeholder="0" />
+            <div class="pteam" id="rLblFora">Fora</div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="rGoleadores">Jogadores que marcaram gol (separados por vírgula)</label>
+          <input id="rGoleadores" placeholder="Ex: Vinícius Jr., Rodrygo" />
+          <div class="hint">Usado pra desempatar. Ex: 2×0 Brasil com gols do Vini e Rodrygo.</div>
+        </div>
+        <button class="btn btn-primary" id="btnGerar" onclick="gerarResultado()">🎯 Gerar resultado e ranking</button>
+      </div>
+      <div id="rankingArea"></div>
+    </div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<footer>
+  <b>Roda Conveniência</b> · Mercadinhos no seu condomínio<br>
+  Bolão da Copa do Mundo 2026 ⚽
+</footer>
+
+<script>
+/* ====================== CONFIG SUPABASE ====================== */
+const SUPABASE_URL = "https://qqwcouliayxvkusyqqxe.supabase.co";
+const SUPABASE_KEY = "sb_publishable_OS33II21fufwr6pKZxT24w_UQTqt7h0";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ====================== ESTADO ====================== */
+let PDVS = [];
+let JOGOS = [];
+let jogoAtual = null;
+
+/* mini util pra bandeira por nome de país */
+const FLAGS = {
+  brasil:"🇧🇷",argentina:"🇦🇷",franca:"🇫🇷","frança":"🇫🇷",alemanha:"🇩🇪",espanha:"🇪🇸",
+  portugal:"🇵🇹",inglaterra:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",marrocos:"🇲🇦",croacia:"🇭🇷","croácia":"🇭🇷",holanda:"🇳🇱",
+  italia:"🇮🇹","itália":"🇮🇹",uruguai:"🇺🇾",mexico:"🇲🇽","méxico":"🇲🇽","estados unidos":"🇺🇸",eua:"🇺🇸",
+  canada:"🇨🇦","canadá":"🇨🇦",japao:"🇯🇵","japão":"🇯🇵",coreia:"🇰🇷",senegal:"🇸🇳",belgica:"🇧🇪","bélgica":"🇧🇪",
+  colombia:"🇨🇴","colômbia":"🇨🇴",chile:"🇨🇱",equador:"🇪🇨",peru:"🇵🇪",australia:"🇦🇺","austrália":"🇦🇺",
+  gana:"🇬🇭",nigeria:"🇳🇬","nigéria":"🇳🇬",camaroes:"🇨🇲","camarões":"🇨🇲",suica:"🇨🇭","suíça":"🇨🇭",
+  dinamarca:"🇩🇰",polonia:"🇵🇱","polônia":"🇵🇱",servia:"🇷🇸","sérvia":"🇷🇸"
+};
+function flag(name){
+  const k=(name||"").trim().toLowerCase();
+  return FLAGS[k]||"⚽";
+}
+
+/* ====================== TOAST ====================== */
+let toastT;
+function toast(msg,type){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='';void t.offsetWidth;
+  t.classList.add('show');if(type)t.classList.add(type);
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+/* ====================== NAVEGAÇÃO ====================== */
+function showView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('backBtn').classList.toggle('show',id!=='viewHome');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function goHome(){jogoAtual=null;showView('viewHome');renderJogos();}
+
+function setHomeMode(mode){
+  const jogos=mode==='jogos';
+  document.getElementById('segJogos').classList.toggle('active',jogos);
+  document.getElementById('segAdmin').classList.toggle('active',!jogos);
+  document.getElementById('homeJogos').style.display=jogos?'block':'none';
+  document.getElementById('homeAdmin').style.display=jogos?'none':'block';
+}
+
+function setTab(sub){
+  document.querySelectorAll('#viewJogo .tab').forEach(t=>t.classList.toggle('active',t.dataset.sub===sub));
+  document.querySelectorAll('#viewJogo .subview').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sub'+sub.charAt(0).toUpperCase()+sub.slice(1)).classList.add('active');
+  if(sub==='palpites')renderPalpites();
+  if(sub==='resultado')renderResultado();
+}
+
+/* ====================== MÁSCARA TELEFONE ====================== */
+function maskTel(el){
+  let v=el.value.replace(/\D/g,'').slice(0,11);
+  if(v.length>10)v=v.replace(/(\d{2})(\d{1})(\d{4})(\d{4})/,'($1) $2 $3-$4');
+  else if(v.length>6)v=v.replace(/(\d{2})(\d{4})(\d{0,4})/,'($1) $2-$3');
+  else if(v.length>2)v=v.replace(/(\d{2})(\d{0,5})/,'($1) $2');
+  else if(v.length>0)v=v.replace(/(\d{0,2})/,'($1');
+  el.value=v;
+}
+
+/* ====================== CARREGAR DADOS INICIAIS ====================== */
+async function init(){
+  // PDVs
+  const {data:pdvs,error:e1}=await sb.from('bolao_pdvs').select('*').order('nome');
+  if(e1){toast('Erro ao carregar PDVs',"err");console.error(e1);}
+  PDVS=pdvs||[];
+  const optsPdv=PDVS.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('');
+  document.getElementById('novoPdv').innerHTML='<option value="">Selecione o PDV...</option>'+optsPdv;
+  document.getElementById('filtroPdv').innerHTML='<option value="">Todos os PDVs</option>'+optsPdv;
+  await loadJogos();
+}
+
+async function loadJogos(){
+  const {data,error}=await sb.from('bolao_jogos').select('*').order('data_jogo',{ascending:true});
+  if(error){toast('Erro ao carregar jogos',"err");console.error(error);return;}
+  JOGOS=data||[];
+  renderJogos();
+}
+
+/* ====================== RENDER LISTA DE JOGOS ====================== */
+function pdvNome(id){const p=PDVS.find(x=>x.id===id);return p?p.nome:'PDV';}
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fmtData(d){if(!d)return'';const[y,m,dd]=d.split('-');return `${dd}/${m}/${y}`;}
+
+function renderJogos(){
+  const filtro=document.getElementById('filtroPdv').value;
+  let lista=JOGOS;
+  if(filtro)lista=lista.filter(j=>j.pdv_id===filtro);
+  const cont=document.getElementById('listaJogos');
+  if(!lista.length){
+    cont.innerHTML=`<div class="empty"><div class="emo">⚽</div><p>Nenhum jogo cadastrado${filtro?' neste PDV':''}.<br>Use "Cadastrar jogo" para começar.</p></div>`;
+    return;
+  }
+  cont.innerHTML=lista.map(j=>{
+    const fin=j.finalizado;
+    return `<div class="card game-card ${fin?'fin':''}" onclick="abrirJogo('${j.id}')">
+      <span class="pdv-tag">${esc(pdvNome(j.pdv_id))}</span>
+      <div class="match">
+        <div class="team"><div class="flag">${flag(j.time_casa)}</div><div class="tname">${esc(j.time_casa)}</div></div>
+        ${fin?`<div class="score-final">${j.placar_casa} × ${j.placar_fora}</div>`:`<div class="vs">×</div>`}
+        <div class="team"><div class="flag">${flag(j.time_fora)}</div><div class="tname">${esc(j.time_fora)}</div></div>
+      </div>
+      <div class="game-meta">
+        <span>📅 ${fmtData(j.data_jogo)}${j.hora_jogo?' · '+j.hora_jogo:''}</span>
+        <span class="chip-status ${fin?'chip-fin':'chip-aberto'}">${fin?'Encerrado':'Aberto'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ====================== CRIAR JOGO ====================== */
+async function criarJogo(){
+  const pdv=document.getElementById('novoPdv').value;
+  const casa=document.getElementById('timeCasa').value.trim();
+  const fora=document.getElementById('timeFora').value.trim();
+  const data=document.getElementById('dataJogo').value;
+  const hora=document.getElementById('horaJogo').value;
+  const kits=parseInt(document.getElementById('qtdKits').value)||5;
+  if(!pdv){toast('Selecione o PDV',"err");return;}
+  if(!casa||!fora){toast('Preencha os dois times',"err");return;}
+  if(!data){toast('Informe a data do jogo',"err");return;}
+  const btn=document.getElementById('btnCriarJogo');btn.disabled=true;btn.textContent='Salvando...';
+  const {error}=await sb.from('bolao_jogos').insert({
+    pdv_id:pdv,time_casa:casa,time_fora:fora,data_jogo:data,hora_jogo:hora||null,qtd_kits:kits
+  });
+  btn.disabled=false;btn.textContent='＋ Cadastrar jogo';
+  if(error){toast('Erro ao criar jogo',"err");console.error(error);return;}
+  toast('Jogo cadastrado!',"ok");
+  document.getElementById('timeCasa').value='';
+  document.getElementById('timeFora').value='';
+  document.getElementById('dataJogo').value='';
+  document.getElementById('horaJogo').value='';
+  document.getElementById('qtdKits').value='5';
+  await loadJogos();
+  setHomeMode('jogos');
+}
+
+/* ====================== ABRIR JOGO ====================== */
+async function abrirJogo(id){
+  jogoAtual=JOGOS.find(j=>j.id===id);
+  if(!jogoAtual){await loadJogos();jogoAtual=JOGOS.find(j=>j.id===id);}
+  if(!jogoAtual)return;
+  const j=jogoAtual;
+  document.getElementById('jogoHeader').innerHTML=`
+    <span class="pdv-tag">${esc(pdvNome(j.pdv_id))}</span>
+    <div class="match">
+      <div class="team"><div class="flag">${flag(j.time_casa)}</div><div class="tname">${esc(j.time_casa)}</div></div>
+      ${j.finalizado?`<div class="score-final">${j.placar_casa} × ${j.placar_fora}</div>`:`<div class="vs">×</div>`}
+      <div class="team"><div class="flag">${flag(j.time_fora)}</div><div class="tname">${esc(j.time_fora)}</div></div>
+    </div>
+    <div class="game-meta" style="justify-content:center;gap:16px;border-top:none;padding-top:4px">
+      <span>📅 ${fmtData(j.data_jogo)}${j.hora_jogo?' · '+j.hora_jogo:''}</span>
+      <span>🎁 ${j.qtd_kits} kits</span>
+    </div>`;
+  // labels do placar
+  document.getElementById('lblCasa').textContent=j.time_casa;
+  document.getElementById('lblFora').textContent=j.time_fora;
+  document.getElementById('rLblCasa').textContent=j.time_casa;
+  document.getElementById('rLblFora').textContent=j.time_fora;
+  // pré-preenche resultado se já finalizado
+  if(j.finalizado){
+    document.getElementById('rCasa').value=j.placar_casa;
+    document.getElementById('rFora').value=j.placar_fora;
+    document.getElementById('rGoleadores').value=j.goleadores||'';
+  }else{
+    document.getElementById('rCasa').value='';
+    document.getElementById('rFora').value='';
+    document.getElementById('rGoleadores').value='';
+  }
+  setTab('cadastrar');
+  showView('viewJogo');
+}
+
+/* ====================== SALVAR PALPITE ====================== */
+async function salvarPalpite(){
+  const j=jogoAtual;if(!j)return;
+  const nome=document.getElementById('pNome').value.trim();
+  const bloco=document.getElementById('pBloco').value.trim();
+  const apto=document.getElementById('pApto').value.trim();
+  const tel=document.getElementById('pTel').value.trim();
+  const casa=document.getElementById('pCasa').value;
+  const fora=document.getElementById('pFora').value;
+  const gol=document.getElementById('pGol').value.trim();
+  if(!nome){toast('Informe seu nome',"err");return;}
+  if(!tel||tel.replace(/\D/g,'').length<10){toast('Telefone inválido',"err");return;}
+  if(casa===''||fora===''){toast('Preencha o placar do palpite',"err");return;}
+  const btn=document.getElementById('btnPalpite');btn.disabled=true;btn.textContent='Salvando...';
+  const {error}=await sb.from('bolao_palpites').insert({
+    jogo_id:j.id,nome,bloco:bloco||null,apartamento:apto||null,telefone:tel,
+    palpite_casa:parseInt(casa),palpite_fora:parseInt(fora),jogador_gol:gol||null
+  });
+  btn.disabled=false;btn.textContent='✓ Confirmar palpite';
+  if(error){toast('Erro ao salvar',"err");console.error(error);return;}
+  toast('Palpite registrado! Boa sorte 🍀',"ok");
+  ['pNome','pBloco','pApto','pTel','pCasa','pFora','pGol'].forEach(id=>document.getElementById(id).value='');
+}
+
+/* ====================== LISTA DE PALPITES ====================== */
+async function renderPalpites(){
+  const cont=document.getElementById('listaPalpites');
+  cont.innerHTML='<div class="loader"><div class="spin"></div>Carregando...</div>';
+  const {data,error}=await sb.from('bolao_palpites').select('*').eq('jogo_id',jogoAtual.id).order('created_at',{ascending:false});
+  if(error){cont.innerHTML='<div class="empty">Erro ao carregar.</div>';return;}
+  if(!data.length){cont.innerHTML='<div class="empty"><div class="emo">📭</div><p>Ainda não há palpites neste jogo.</p></div>';return;}
+  const head=`<div class="info-box"><b>${data.length}</b> ${data.length===1?'pessoa cadastrada':'pessoas cadastradas'} neste jogo.</div>`;
+  cont.innerHTML=head+data.map(p=>{
+    const un=[p.bloco?'Bl '+esc(p.bloco):'',p.apartamento?'Ap '+esc(p.apartamento):''].filter(Boolean).join(' · ');
+    return `<div class="palp-row">
+      <div><div class="nm">${esc(p.nome)}</div><div class="un">${un||'—'} · ${esc(p.telefone)}</div></div>
+      <div class="palp-guess">${p.palpite_casa} × ${p.palpite_fora}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ====================== RESULTADO / RANKING ====================== */
+function renderResultado(){
+  // se já finalizado, mostra ranking direto
+  if(jogoAtual && jogoAtual.finalizado){
+    calcularRanking();
+  }else{
+    document.getElementById('rankingArea').innerHTML='';
+  }
+}
+
+async function gerarResultado(){
+  const j=jogoAtual;if(!j)return;
+  const casa=document.getElementById('rCasa').value;
+  const fora=document.getElementById('rFora').value;
+  const gols=document.getElementById('rGoleadores').value.trim();
+  if(casa===''||fora===''){toast('Preencha o placar final',"err");return;}
+  const btn=document.getElementById('btnGerar');btn.disabled=true;btn.textContent='Apurando...';
+  const {error}=await sb.from('bolao_jogos').update({
+    placar_casa:parseInt(casa),placar_fora:parseInt(fora),goleadores:gols||null,finalizado:true
+  }).eq('id',j.id);
+  btn.disabled=false;btn.textContent='🎯 Gerar resultado e ranking';
+  if(error){toast('Erro ao salvar resultado',"err");console.error(error);return;}
+  jogoAtual.placar_casa=parseInt(casa);jogoAtual.placar_fora=parseInt(fora);
+  jogoAtual.goleadores=gols||null;jogoAtual.finalizado=true;
+  toast('Resultado gerado!',"ok");
+  await loadJogos();
+  jogoAtual=JOGOS.find(x=>x.id===j.id);
+  calcularRanking();
+}
+
+/* lógica de pontuação:
+   3 pts = acertou placar exato
+   2 pts = acertou vencedor + saldo de gols
+   1 pt  = acertou só o vencedor (ou empate)
+   desempate = acertou jogador que marcou gol (campo goleadores) */
+async function calcularRanking(){
+  const j=jogoAtual;
+  const area=document.getElementById('rankingArea');
+  area.innerHTML='<div class="loader"><div class="spin"></div>Calculando ranking...</div>';
+  const {data:palps,error}=await sb.from('bolao_palpites').select('*').eq('jogo_id',j.id);
+  if(error){area.innerHTML='<div class="empty">Erro ao carregar palpites.</div>';return;}
+  const rc=j.placar_casa,rf=j.placar_fora;
+  const resWin=rc>rf?'casa':(rf>rc?'fora':'empate');
+  const resSaldo=rc-rf;
+  const goleadores=(j.goleadores||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);
+
+  const ranked=palps.map(p=>{
+    let pts=0;
+    const pWin=p.palpite_casa>p.palpite_fora?'casa':(p.palpite_fora>p.palpite_casa?'fora':'empate');
+    if(p.palpite_casa===rc&&p.palpite_fora===rf)pts=3;
+    else if(pWin===resWin&&(p.palpite_casa-p.palpite_fora)===resSaldo)pts=2;
+    else if(pWin===resWin)pts=1;
+    // desempate: acertou algum goleador
+    let acertouGol=false;
+    if(p.jogador_gol){
+      const g=p.jogador_gol.toLowerCase().trim();
+      acertouGol=goleadores.some(gl=>gl.includes(g)||g.includes(gl));
+    }
+    return {...p,pts,acertouGol,pWin};
+  });
+
+  // ordena: pontos desc, depois acertou goleador, depois ordem de cadastro (mais cedo ganha)
+  ranked.sort((a,b)=>{
+    if(b.pts!==a.pts)return b.pts-a.pts;
+    if(b.acertouGol!==a.acertouGol)return (b.acertouGol?1:0)-(a.acertouGol?1:0);
+    return new Date(a.created_at)-new Date(b.created_at);
+  });
+
+  const kits=j.qtd_kits||5;
+  const comPontos=ranked.filter(r=>r.pts>0);
+
+  if(!comPontos.length){
+    area.innerHTML=`<div class="empty"><div class="emo">🤷</div><p>Ninguém acertou o resultado neste jogo.</p></div>`;
+    return;
+  }
+
+  let html=`<div class="eyebrow" style="margin-top:24px">Ganhadores</div>
+    <h3 style="font-family:'Archivo Black';color:var(--campo);font-size:1.25rem;margin-bottom:4px">🏆 Top ${kits} do Bolão</h3>
+    <p class="hint" style="margin-bottom:16px">Placar final: <b>${j.time_casa} ${rc} × ${rf} ${j.time_fora}</b>${goleadores.length?' · Gols: '+esc(j.goleadores):''}</p>`;
+
+  ranked.forEach((r,i)=>{
+    if(r.pts<=0)return;
+    const winner=i<kits;
+    const un=[r.bloco?'Bl '+esc(r.bloco):'',r.apartamento?'Ap '+esc(r.apartamento):''].filter(Boolean).join(' · ');
+    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+    html+=`<div class="rank-item ${winner?'winner':''}">
+      <div class="rank-pos">${medal}</div>
+      <div class="rank-info">
+        <div class="rank-name">${esc(r.nome)}</div>
+        <div class="rank-meta">${un||'—'} · ${esc(r.telefone)}</div>
+        ${r.palpite_casa===rc&&r.palpite_fora===rf?'<div class="rank-meta">🎯 Acertou o placar exato</div>':`<div class="rank-meta">Palpite: ${r.palpite_casa}×${r.palpite_fora}</div>`}
+        ${r.acertouGol?'<div class="rank-meta">⚽ Acertou o goleador</div>':''}
+        ${winner?'<span class="kit-badge">🎁 Ganhou kit</span>':''}
+      </div>
+      <div class="rank-pts"><div class="big">${r.pts}</div><div class="lbl">pts</div></div>
+    </div>`;
+  });
+
+  // aviso de empate na fronteira dos kits
+  if(comPontos.length>kits){
+    const corte=comPontos[kits-1];
+    const proximo=comPontos[kits];
+    if(corte && proximo && corte.pts===proximo.pts && corte.acertouGol===proximo.acertouGol){
+      html+=`<div class="info-box" style="margin-top:14px;background:#fdf3d9;border-color:#f0d98a;color:#8a6d1e">
+        ⚠️ Há empate na linha de corte dos kits. O critério de desempate foi: <b>1º placar exato, 2º acertar o goleador, 3º quem cadastrou primeiro</b>. Confira manualmente se necessário.</div>`;
+    }
+  }
+
+  area.innerHTML=html;
+}
+
+/* ====================== START ====================== */
+init();
+</script>
+</body>
+</html>
