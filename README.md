@@ -9,8 +9,9 @@ Funciona direto no celular, sem instalar nada. Cada PDV pode ter seus próprios 
 - **Cadastrar jogo** vinculado a um PDV (ex: `Brasil × Marrocos` no `MM BTG BOTAFOGO`, com data e horário)
 - **Cadastrar palpites** dos moradores: nome, bloco, apartamento, telefone e palpite de placar
 - **Listar** todas as pessoas que palpitaram em cada jogo
-- **Gerar resultado**: você lança o placar final + os jogadores que marcaram gol
+- **Gerar resultado**: você lança o placar final + marca os jogadores que fizeram gol
 - **Ranking Top 5** automático com os ganhadores dos kits
+- **Elencos das seleções**: cada time tem sua lista de jogadores. No palpite, a pessoa escolhe o goleador de um menu (sem erro de digitação). Brasil e Marrocos já vêm cadastrados.
 
 ## 📋 Regras do bolão
 
@@ -41,6 +42,7 @@ Os dados ficam num banco **Supabase** (projeto *Agent Roda*), online e compartil
 | `bolao_pdvs` | Lista dos 263 PDVs (locais das ações) |
 | `bolao_jogos` | Jogos cadastrados, vinculados a um PDV |
 | `bolao_palpites` | Palpites das pessoas |
+| `bolao_selecoes` | Elencos das seleções (Brasil e Marrocos já prontos) |
 
 ## 🔒 Sobre a chave do Supabase
 

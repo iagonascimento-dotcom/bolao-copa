@@ -181,6 +181,12 @@
 
   .info-box{background:#e6f6ee;border:1px solid #bfe6d2;border-radius:12px;padding:13px 15px;font-size:.85rem;color:var(--campo-2);margin-bottom:16px;line-height:1.55}
   .info-box b{color:var(--campo)}
+  .goleadores-list{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;border:1.5px solid var(--borda);border-radius:12px;padding:8px}
+  .gol-grp{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--linha);padding:6px 4px 2px}
+  .gol-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;cursor:pointer;font-size:.9rem;font-weight:600}
+  .gol-item:active{background:#f1efe8}
+  .gol-item input{width:20px;height:20px;flex:none;accent-color:var(--campo)}
+  .gol-empty{padding:14px;text-align:center;color:var(--cinza);font-size:.85rem}
   .rules-list{list-style:none;margin-top:8px}
   .rules-list li{padding:6px 0 6px 26px;position:relative;font-size:.86rem}
   .rules-list li::before{content:"⚽";position:absolute;left:0;top:5px;font-size:.85rem}
@@ -211,7 +217,8 @@
 
     <div class="admin-bar">
       <div class="seg active" id="segJogos" onclick="setHomeMode('jogos')">⚽ Jogos</div>
-      <div class="seg" id="segAdmin" onclick="setHomeMode('admin')">⚙️ Cadastrar jogo</div>
+      <div class="seg" id="segAdmin" onclick="setHomeMode('admin')">⚙️ Novo jogo</div>
+      <div class="seg" id="segElencos" onclick="setHomeMode('elencos')">👕 Elencos</div>
     </div>
 
     <!-- modo jogos -->
@@ -235,13 +242,15 @@
         <div class="row2">
           <div class="field">
             <label for="timeCasa">Time da casa *</label>
-            <input id="timeCasa" placeholder="Ex: Brasil" />
+            <input id="timeCasa" list="listaSelecoes" placeholder="Ex: Brasil" />
           </div>
           <div class="field">
             <label for="timeFora">Time visitante *</label>
-            <input id="timeFora" placeholder="Ex: Marrocos" />
+            <input id="timeFora" list="listaSelecoes" placeholder="Ex: Marrocos" />
           </div>
         </div>
+        <datalist id="listaSelecoes"></datalist>
+        <div class="hint" style="margin:-8px 0 14px">Times com elenco cadastrado aparecem na lista. Pode digitar um novo também.</div>
         <div class="row2">
           <div class="field">
             <label for="dataJogo">Data do jogo *</label>
@@ -259,6 +268,29 @@
         </div>
         <button class="btn btn-primary" id="btnCriarJogo" onclick="criarJogo()">＋ Cadastrar jogo</button>
       </div>
+    </div>
+
+    <!-- modo elencos: gerenciar jogadores das seleções -->
+    <div id="homeElencos" style="display:none">
+      <div class="info-box">
+        Cadastre os jogadores de cada seleção. Eles viram opções no palpite de gol, evitando erro de digitação. <b>Brasil</b> e <b>Marrocos</b> já vêm prontos.
+      </div>
+      <div class="card">
+        <div class="field">
+          <label for="selElenco">Seleção</label>
+          <select id="selElenco" onchange="renderElenco()"><option value="">Selecione...</option></select>
+        </div>
+        <div id="addSelecaoBox">
+          <div class="field">
+            <label for="novaSelecao">Criar nova seleção</label>
+            <div style="display:flex;gap:8px">
+              <input id="novaSelecao" placeholder="Ex: Haiti" style="flex:1" />
+              <button class="btn btn-ghost btn-sm" onclick="criarSelecao()" style="flex:none">＋ Criar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="elencoArea"></div>
     </div>
   </section>
 
@@ -309,7 +341,7 @@
         </div>
         <div class="field">
           <label for="pGol">Jogador que vai marcar gol (desempate)</label>
-          <input id="pGol" placeholder="Ex: Vinícius Jr." />
+          <select id="pGol"><option value="">Selecione um jogador...</option></select>
           <div class="hint">Usado só pra desempatar se muita gente acertar o placar.</div>
         </div>
         <button class="btn btn-gold" id="btnPalpite" onclick="salvarPalpite()">✓ Confirmar palpite</button>
@@ -338,9 +370,9 @@
           </div>
         </div>
         <div class="field">
-          <label for="rGoleadores">Jogadores que marcaram gol (separados por vírgula)</label>
-          <input id="rGoleadores" placeholder="Ex: Vinícius Jr., Rodrygo" />
-          <div class="hint">Usado pra desempatar. Ex: 2×0 Brasil com gols do Vini e Rodrygo.</div>
+          <label>Jogadores que marcaram gol (desempate)</label>
+          <div id="rGoleadores" class="goleadores-list"></div>
+          <div class="hint">Marque quem fez gol. Esses nomes desempatam quem acertou o placar.</div>
         </div>
         <button class="btn btn-primary" id="btnGerar" onclick="gerarResultado()">🎯 Gerar resultado e ranking</button>
       </div>
@@ -369,6 +401,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 /* ====================== ESTADO ====================== */
 let PDVS = [];
 let JOGOS = [];
+let SELECOES = [];
 let jogoAtual = null;
 
 /* mini util pra bandeira por nome de país */
@@ -405,11 +438,12 @@ function showView(id){
 function goHome(){jogoAtual=null;showView('viewHome');renderJogos();}
 
 function setHomeMode(mode){
-  const jogos=mode==='jogos';
-  document.getElementById('segJogos').classList.toggle('active',jogos);
-  document.getElementById('segAdmin').classList.toggle('active',!jogos);
-  document.getElementById('homeJogos').style.display=jogos?'block':'none';
-  document.getElementById('homeAdmin').style.display=jogos?'none':'block';
+  document.getElementById('segJogos').classList.toggle('active',mode==='jogos');
+  document.getElementById('segAdmin').classList.toggle('active',mode==='admin');
+  document.getElementById('segElencos').classList.toggle('active',mode==='elencos');
+  document.getElementById('homeJogos').style.display=mode==='jogos'?'block':'none';
+  document.getElementById('homeAdmin').style.display=mode==='admin'?'block':'none';
+  document.getElementById('homeElencos').style.display=mode==='elencos'?'block':'none';
 }
 
 function setTab(sub){
@@ -439,7 +473,26 @@ async function init(){
   const optsPdv=PDVS.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('');
   document.getElementById('novoPdv').innerHTML='<option value="">Selecione o PDV...</option>'+optsPdv;
   document.getElementById('filtroPdv').innerHTML='<option value="">Todos os PDVs</option>'+optsPdv;
+  await loadSelecoes();
   await loadJogos();
+}
+
+async function loadSelecoes(){
+  const {data,error}=await sb.from('bolao_selecoes').select('*').order('nome');
+  if(error){console.error(error);return;}
+  SELECOES=data||[];
+  // datalist de times no cadastro de jogo
+  document.getElementById('listaSelecoes').innerHTML=SELECOES.map(s=>`<option value="${esc(s.nome)}">`).join('');
+  // selector de elencos
+  const sel=document.getElementById('selElenco');
+  const atual=sel.value;
+  sel.innerHTML='<option value="">Selecione...</option>'+SELECOES.map(s=>`<option value="${s.id}">${esc(s.nome)} (${(s.jogadores||[]).length})</option>`).join('');
+  if(atual)sel.value=atual;
+}
+
+function selecaoPorNome(nome){
+  const k=(nome||'').trim().toLowerCase();
+  return SELECOES.find(s=>s.nome.toLowerCase()===k);
 }
 
 async function loadJogos(){
@@ -529,18 +582,69 @@ async function abrirJogo(id){
   document.getElementById('lblFora').textContent=j.time_fora;
   document.getElementById('rLblCasa').textContent=j.time_casa;
   document.getElementById('rLblFora').textContent=j.time_fora;
+  // monta dropdown de jogadores das duas seleções (desempate)
+  montarDropdownGol(j);
+  montarListaGoleadores(j);
   // pré-preenche resultado se já finalizado
   if(j.finalizado){
     document.getElementById('rCasa').value=j.placar_casa;
     document.getElementById('rFora').value=j.placar_fora;
-    document.getElementById('rGoleadores').value=j.goleadores||'';
+    marcarGoleadores(j.goleadores);
   }else{
     document.getElementById('rCasa').value='';
     document.getElementById('rFora').value='';
-    document.getElementById('rGoleadores').value='';
   }
   setTab('cadastrar');
   showView('viewJogo');
+}
+
+/* monta a lista de checkboxes de goleadores (apuração) */
+function montarListaGoleadores(j){
+  const sCasa=selecaoPorNome(j.time_casa);
+  const sFora=selecaoPorNome(j.time_fora);
+  const cont=document.getElementById('rGoleadores');
+  let html='';
+  function grupo(nome,sel){
+    if(!sel||!(sel.jogadores||[]).length)return'';
+    return `<div class="gol-grp">${esc(nome)}</div>`+sel.jogadores.map(n=>
+      `<label class="gol-item"><input type="checkbox" value="${esc(n)}"> ${esc(n)}</label>`).join('');
+  }
+  html+=grupo(j.time_casa,sCasa);
+  html+=grupo(j.time_fora,sFora);
+  if(!html)html='<div class="gol-empty">Cadastre os elencos na aba "Elencos" para marcar os goleadores.</div>';
+  cont.innerHTML=html;
+}
+
+/* marca os checkboxes conforme string salva */
+function marcarGoleadores(str){
+  const nomes=(str||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+  document.querySelectorAll('#rGoleadores input[type=checkbox]').forEach(cb=>{
+    cb.checked=nomes.includes(cb.value.toLowerCase());
+  });
+}
+
+/* lê os goleadores marcados */
+function lerGoleadores(){
+  return Array.from(document.querySelectorAll('#rGoleadores input:checked')).map(cb=>cb.value).join(', ');
+}
+
+/* monta o <select> de jogadores com base nas duas seleções do jogo */
+function montarDropdownGol(j){
+  const sCasa=selecaoPorNome(j.time_casa);
+  const sFora=selecaoPorNome(j.time_fora);
+  const sel=document.getElementById('pGol');
+  let html='<option value="">Selecione um jogador...</option>';
+  if(sCasa&&(sCasa.jogadores||[]).length){
+    html+=`<optgroup label="${esc(j.time_casa)}">`+sCasa.jogadores.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')+'</optgroup>';
+  }
+  if(sFora&&(sFora.jogadores||[]).length){
+    html+=`<optgroup label="${esc(j.time_fora)}">`+sFora.jogadores.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')+'</optgroup>';
+  }
+  // se nenhuma seleção tem elenco, deixa opção genérica
+  if(!sCasa&&!sFora){
+    html+='<option value="" disabled>Cadastre os elencos na aba "Elencos"</option>';
+  }
+  sel.innerHTML=html;
 }
 
 /* ====================== SALVAR PALPITE ====================== */
@@ -598,7 +702,7 @@ async function gerarResultado(){
   const j=jogoAtual;if(!j)return;
   const casa=document.getElementById('rCasa').value;
   const fora=document.getElementById('rFora').value;
-  const gols=document.getElementById('rGoleadores').value.trim();
+  const gols=lerGoleadores();
   if(casa===''||fora===''){toast('Preencha o placar final',"err");return;}
   const btn=document.getElementById('btnGerar');btn.disabled=true;btn.textContent='Apurando...';
   const {error}=await sb.from('bolao_jogos').update({
@@ -693,6 +797,77 @@ async function calcularRanking(){
   }
 
   area.innerHTML=html;
+}
+
+/* ====================== ELENCOS ====================== */
+async function criarSelecao(){
+  const nome=document.getElementById('novaSelecao').value.trim();
+  if(!nome){toast('Digite o nome da seleção',"err");return;}
+  if(selecaoPorNome(nome)){toast('Essa seleção já existe',"err");return;}
+  const {error}=await sb.from('bolao_selecoes').insert({nome,jogadores:[]});
+  if(error){toast('Erro ao criar',"err");console.error(error);return;}
+  document.getElementById('novaSelecao').value='';
+  toast('Seleção criada!',"ok");
+  await loadSelecoes();
+  const nova=selecaoPorNome(nome);
+  if(nova){document.getElementById('selElenco').value=nova.id;renderElenco();}
+}
+
+function renderElenco(){
+  const id=document.getElementById('selElenco').value;
+  const area=document.getElementById('elencoArea');
+  if(!id){area.innerHTML='';return;}
+  const s=SELECOES.find(x=>x.id===id);
+  if(!s){area.innerHTML='';return;}
+  const jogs=s.jogadores||[];
+  let html=`<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h3 style="font-family:'Archivo Black';color:var(--campo);font-size:1.05rem">${flag(s.nome)} ${esc(s.nome)}</h3>
+      <span class="hint">${jogs.length} jogadores</span>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <div style="display:flex;gap:8px">
+        <input id="novoJogador" placeholder="Nome do jogador" style="flex:1" onkeydown="if(event.key==='Enter')addJogador()" />
+        <button class="btn btn-gold btn-sm" onclick="addJogador()" style="flex:none">＋ Add</button>
+      </div>
+    </div>`;
+  if(!jogs.length){
+    html+='<div class="empty" style="padding:24px"><p>Nenhum jogador ainda. Adicione acima.</p></div>';
+  }else{
+    html+='<div>'+jogs.map((n,i)=>`<div class="palp-row" style="margin-bottom:6px">
+      <div class="nm">${esc(n)}</div>
+      <button class="btn btn-danger btn-sm" onclick="removeJogador(${i})" style="flex:none;padding:6px 12px">🗑</button>
+    </div>`).join('')+'</div>';
+  }
+  html+='</div>';
+  area.innerHTML=html;
+}
+
+async function addJogador(){
+  const id=document.getElementById('selElenco').value;
+  const inp=document.getElementById('novoJogador');
+  const nome=inp.value.trim();
+  if(!id||!nome)return;
+  const s=SELECOES.find(x=>x.id===id);
+  const jogs=[...(s.jogadores||[])];
+  if(jogs.some(x=>x.toLowerCase()===nome.toLowerCase())){toast('Jogador já está na lista',"err");return;}
+  jogs.push(nome);
+  const {error}=await sb.from('bolao_selecoes').update({jogadores:jogs}).eq('id',id);
+  if(error){toast('Erro ao salvar',"err");console.error(error);return;}
+  s.jogadores=jogs;inp.value='';renderElenco();
+  // atualiza datalist
+  await loadSelecoes();
+  document.getElementById('selElenco').value=id;
+}
+
+async function removeJogador(idx){
+  const id=document.getElementById('selElenco').value;
+  const s=SELECOES.find(x=>x.id===id);
+  const jogs=[...(s.jogadores||[])];
+  jogs.splice(idx,1);
+  const {error}=await sb.from('bolao_selecoes').update({jogadores:jogs}).eq('id',id);
+  if(error){toast('Erro ao remover',"err");console.error(error);return;}
+  s.jogadores=jogs;renderElenco();
 }
 
 /* ====================== START ====================== */
