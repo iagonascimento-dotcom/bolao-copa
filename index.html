@@ -77,6 +77,8 @@
   }
   .game-card{cursor:pointer;transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden}
   .game-card:active{transform:scale(.98)}
+  .del-jogo{position:absolute;top:10px;right:10px;z-index:5;background:#fff;border:1.5px solid var(--erro);color:var(--erro);width:34px;height:34px;border-radius:9px;font-size:.95rem;cursor:pointer;display:grid;place-items:center;line-height:1;padding:0}
+  .del-jogo:active{background:#fdeaea}
   .game-card .pdv-tag{
     display:inline-block;font-size:.66rem;font-weight:800;letter-spacing:.8px;text-transform:uppercase;
     background:var(--campo);color:#fff;padding:4px 9px;border-radius:6px;margin-bottom:12px;
@@ -404,6 +406,10 @@ const SUPABASE_URL = "https://qqwcouliayxvkusyqqxe.supabase.co";
 const SUPABASE_KEY = "sb_publishable_OS33II21fufwr6pKZxT24w_UQTqt7h0";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+/* senha mestre para apagar jogos (proteção contra exclusão acidental) */
+const SENHA_MESTRE = "rodacopa2026";
+let senhaLiberada = false; // libera durante a sessão após acertar 1x
+
 /* ====================== ESTADO ====================== */
 let PDVS = [];
 let JOGOS = [];
@@ -525,6 +531,7 @@ function renderJogos(){
   cont.innerHTML=lista.map(j=>{
     const fin=j.finalizado;
     return `<div class="card game-card ${fin?'fin':''}" onclick="abrirJogo('${j.id}')">
+      <button class="del-jogo" onclick="event.stopPropagation();pedirApagarJogo('${j.id}')" aria-label="Apagar jogo">🗑</button>
       <span class="pdv-tag">${esc(pdvNome(j.pdv_id))}</span>
       <div class="match">
         <div class="team"><div class="flag">${flag(j.time_casa)}</div><div class="tname">${esc(j.time_casa)}</div></div>
@@ -564,6 +571,26 @@ async function criarJogo(){
   document.getElementById('qtdKits').value='5';
   await loadJogos();
   setHomeMode('jogos');
+}
+
+/* ====================== APAGAR JOGO ====================== */
+async function pedirApagarJogo(id){
+  const j=JOGOS.find(x=>x.id===id);
+  if(!j)return;
+  // pede senha uma vez por sessão
+  if(!senhaLiberada){
+    const tent=prompt('Para apagar jogos, digite a senha mestre:');
+    if(tent===null)return; // cancelou
+    if(tent!==SENHA_MESTRE){toast('Senha incorreta',"err");return;}
+    senhaLiberada=true;
+  }
+  // confirma a exclusão deste jogo
+  const ok=confirm(`Apagar o jogo "${j.time_casa} × ${j.time_fora}"?\n\nIsso remove o jogo e TODOS os palpites dele. Não dá pra desfazer.`);
+  if(!ok)return;
+  const {error}=await sb.from('bolao_jogos').delete().eq('id',id);
+  if(error){toast('Erro ao apagar',"err");console.error(error);return;}
+  toast('Jogo apagado',"ok");
+  await loadJogos();
 }
 
 /* ====================== ABRIR JOGO ====================== */
