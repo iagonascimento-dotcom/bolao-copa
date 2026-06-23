@@ -472,13 +472,32 @@ let SESSION = null;   // sessão do Supabase Auth
 
 /* mini util pra bandeira por nome de país */
 const FLAGS = {
-  brasil:"🇧🇷",argentina:"🇦🇷",franca:"🇫🇷","frança":"🇫🇷",alemanha:"🇩🇪",espanha:"🇪🇸",
-  portugal:"🇵🇹",inglaterra:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",marrocos:"🇲🇦",croacia:"🇭🇷","croácia":"🇭🇷",holanda:"🇳🇱",
-  italia:"🇮🇹","itália":"🇮🇹",uruguai:"🇺🇾",mexico:"🇲🇽","méxico":"🇲🇽","estados unidos":"🇺🇸",eua:"🇺🇸",
-  canada:"🇨🇦","canadá":"🇨🇦",japao:"🇯🇵","japão":"🇯🇵",coreia:"🇰🇷",senegal:"🇸🇳",belgica:"🇧🇪","bélgica":"🇧🇪",
-  colombia:"🇨🇴","colômbia":"🇨🇴",chile:"🇨🇱",equador:"🇪🇨",peru:"🇵🇪",australia:"🇦🇺","austrália":"🇦🇺",
-  gana:"🇬🇭",nigeria:"🇳🇬","nigéria":"🇳🇬",camaroes:"🇨🇲","camarões":"🇨🇲",suica:"🇨🇭","suíça":"🇨🇭",
-  dinamarca:"🇩🇰",polonia:"🇵🇱","polônia":"🇵🇱",servia:"🇷🇸","sérvia":"🇷🇸"
+  // anfitriões
+  "estados unidos":"🇺🇸",eua:"🇺🇸","méxico":"🇲🇽",mexico:"🇲🇽","canadá":"🇨🇦",canada:"🇨🇦",
+  // europa
+  alemanha:"🇩🇪",espanha:"🇪🇸",franca:"🇫🇷","frança":"🇫🇷",portugal:"🇵🇹",
+  inglaterra:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",holanda:"🇳🇱","países baixos":"🇳🇱","paises baixos":"🇳🇱",
+  belgica:"🇧🇪","bélgica":"🇧🇪",croacia:"🇭🇷","croácia":"🇭🇷",italia:"🇮🇹","itália":"🇮🇹",
+  suica:"🇨🇭","suíça":"🇨🇭",dinamarca:"🇩🇰",polonia:"🇵🇱","polônia":"🇵🇱",
+  servia:"🇷🇸","sérvia":"🇷🇸",escocia:"🏴󠁧󠁢󠁳󠁣󠁴󠁿","escócia":"🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+  austria:"🇦🇹","áustria":"🇦🇹",noruega:"🇳🇴",turquia:"🇹🇷",
+  "ucrânia":"🇺🇦",ucrania:"🇺🇦","república tcheca":"🇨🇿","republica tcheca":"🇨🇿",tchequia:"🇨🇿",
+  // américa do sul
+  brasil:"🇧🇷",argentina:"🇦🇷",uruguai:"🇺🇾",colombia:"🇨🇴","colômbia":"🇨🇴",
+  equador:"🇪🇨",paraguai:"🇵🇾",peru:"🇵🇪",chile:"🇨🇱",bolivia:"🇧🇴","bolívia":"🇧🇴",
+  venezuela:"🇻🇪",
+  // áfrica
+  marrocos:"🇲🇦",senegal:"🇸🇳",gana:"🇬🇭",nigeria:"🇳🇬","nigéria":"🇳🇬",
+  camaroes:"🇨🇲","camarões":"🇨🇲","áfrica do sul":"🇿🇦","africa do sul":"🇿🇦",
+  argelia:"🇩🇿","argélia":"🇩🇿",tunisia:"🇹🇳","tunísia":"🇹🇳",egito:"🇪🇬",
+  "costa do marfim":"🇨🇮","cabo verde":"🇨🇻",
+  // ásia / oceania
+  japao:"🇯🇵","japão":"🇯🇵",coreia:"🇰🇷","coreia do sul":"🇰🇷","irã":"🇮🇷",ira:"🇮🇷",
+  "arábia saudita":"🇸🇦","arabia saudita":"🇸🇦",australia:"🇦🇺","austrália":"🇦🇺",
+  catar:"🇶🇦",qatar:"🇶🇦",uzbequistao:"🇺🇿","uzbequistão":"🇺🇿",jordania:"🇯🇴","jordânia":"🇯🇴",
+  "nova zelândia":"🇳🇿","nova zelandia":"🇳🇿",
+  // concacaf / outros
+  panama:"🇵🇦","panamá":"🇵🇦","curaçao":"🇨🇼",curacao:"🇨🇼",haiti:"🇭🇹"
 };
 function flag(name){
   const k=(name||"").trim().toLowerCase();
