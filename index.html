@@ -752,10 +752,10 @@ async function gerarResultado(){
 }
 
 /* lógica de pontuação:
-   3 pts = acertou placar exato
-   2 pts = acertou vencedor + saldo de gols
-   1 pt  = acertou só o vencedor (ou empate)
-   desempate = acertou jogador que marcou gol (campo goleadores) */
+   3 pts = acertou o placar exato (inclui empate exato, ex: 2x2)
+   1 pt  = acertou só o resultado (quem venceu, ou que seria empate)
+   0 pt  = errou o resultado
+   desempate = quem acertou mais goleadores (campo goleadores) */
 async function calcularRanking(){
   const j=jogoAtual;
   const area=document.getElementById('rankingArea');
@@ -764,15 +764,13 @@ async function calcularRanking(){
   if(error){area.innerHTML='<div class="empty">Erro ao carregar palpites.</div>';return;}
   const rc=j.placar_casa,rf=j.placar_fora;
   const resWin=rc>rf?'casa':(rf>rc?'fora':'empate');
-  const resSaldo=rc-rf;
   const goleadores=(j.goleadores||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);
 
   const ranked=palps.map(p=>{
     let pts=0;
     const pWin=p.palpite_casa>p.palpite_fora?'casa':(p.palpite_fora>p.palpite_casa?'fora':'empate');
-    if(p.palpite_casa===rc&&p.palpite_fora===rf)pts=3;
-    else if(pWin===resWin&&(p.palpite_casa-p.palpite_fora)===resSaldo)pts=2;
-    else if(pWin===resWin)pts=1;
+    if(p.palpite_casa===rc&&p.palpite_fora===rf)pts=3; // placar exato (inclui empate exato)
+    else if(pWin===resWin)pts=1;                        // acertou só o resultado (vencedor ou empate)
     // desempate: conta quantos goleadores a pessoa acertou
     let golsAcertados=0;
     const palpitados=(p.jogador_gol||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);
