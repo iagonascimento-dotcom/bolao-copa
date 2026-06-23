@@ -1197,7 +1197,7 @@ async function abrirPalpitePublico(codigo){
         <span>🎁 ${j.qtd_kits} kits</span>
       </div>
     </div>
-    <div class="info-box">${esc(explic)}</div>
+    <div class="info-box" style="white-space:pre-wrap">${esc(explic)}</div>
     ${encerrado?`<div class="card" style="text-align:center"><div style="font-size:2rem">🏁</div><h3 style="font-family:'Archivo Black';color:var(--campo);margin:8px 0">Palpites encerrados</h3><p class="section-sub">Este jogo já foi finalizado. Obrigado por participar!</p></div>`:`
     <div class="card">
       <div class="field"><label for="ppNome">Nome completo *</label><input id="ppNome" placeholder="Seu nome" /></div>
