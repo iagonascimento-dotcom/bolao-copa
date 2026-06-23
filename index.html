@@ -507,7 +507,9 @@ function closeModal(){
 function showView(id){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  document.getElementById('backBtn').classList.toggle('show',id!=='viewHome');
+  // botão voltar só aparece dentro do painel (ex: detalhe de jogo), nunca no login/público/home
+  const semVoltar=['viewHome','viewLogin','viewPublico'];
+  document.getElementById('backBtn').classList.toggle('show',!semVoltar.includes(id));
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function goHome(){jogoAtual=null;showView('viewHome');renderJogos();}
