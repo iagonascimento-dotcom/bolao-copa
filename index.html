@@ -59,6 +59,9 @@
   }
   .back-btn:active{background:rgba(255,255,255,.25)}
   .back-btn.show{display:flex}
+  .head-auth{margin-left:auto;background:rgba(255,255,255,.12);border:none;color:#fff;font-family:'Archivo';font-weight:700;font-size:.78rem;padding:8px 13px;border-radius:10px;cursor:pointer}
+  .head-auth:active{background:rgba(255,255,255,.25)}
+  .head-auth.with-back{margin-left:8px}
 
   /* ===== LAYOUT ===== */
   main{max-width:680px;margin:0 auto;padding:18px 16px 80px}
@@ -79,6 +82,8 @@
   .game-card:active{transform:scale(.98)}
   .del-jogo{position:absolute;top:10px;right:10px;z-index:5;background:#fff;border:1.5px solid var(--erro);color:var(--erro);width:34px;height:34px;border-radius:9px;font-size:.95rem;cursor:pointer;display:grid;place-items:center;line-height:1;padding:0}
   .del-jogo:active{background:#fdeaea}
+  .btn-link{width:100%;margin-top:12px;background:#eef5f1;border:1.5px solid #cfe6da;color:var(--campo);font-family:'Archivo';font-weight:700;font-size:.85rem;padding:10px;border-radius:10px;cursor:pointer}
+  .btn-link:active{background:#dfeee6}
   .game-card .pdv-tag{
     display:inline-block;font-size:.66rem;font-weight:800;letter-spacing:.8px;text-transform:uppercase;
     background:var(--campo);color:#fff;padding:4px 9px;border-radius:6px;margin-bottom:12px;
@@ -213,6 +218,7 @@
       <p>Roda Conveniência</p>
     </div>
     <button class="back-btn" id="backBtn" onclick="goHome()">‹ Voltar</button>
+    <button class="head-auth" id="headAuth" onclick="headAuthClick()" style="display:none"></button>
   </div>
 </header>
 
@@ -227,6 +233,7 @@
       <div class="seg active" id="segJogos" onclick="setHomeMode('jogos')">⚽ Jogos</div>
       <div class="seg" id="segAdmin" onclick="setHomeMode('admin')">⚙️ Novo jogo</div>
       <div class="seg" id="segElencos" onclick="setHomeMode('elencos')">👕 Elencos</div>
+      <div class="seg" id="segAdmins" onclick="setHomeMode('admins')" style="display:none">🔑 Admins</div>
     </div>
 
     <!-- modo jogos -->
@@ -274,6 +281,11 @@
           <input id="qtdKits" type="number" min="1" value="5" />
           <div class="hint">Padrão: 5 kits. O Top 5 acertadores leva os kits.</div>
         </div>
+        <div class="field">
+          <label for="descJogo">Explicação para os moradores (opcional)</label>
+          <textarea id="descJogo" rows="3" placeholder="Ex: Faça seu palpite até o dia do jogo! Os 5 que mais acertarem ganham um kit. Em caso de empate, vale quem acertar mais goleadores." style="width:100%;font-family:'Archivo';font-size:1rem;padding:13px 14px;border:1.5px solid var(--borda);border-radius:12px;resize:vertical"></textarea>
+          <div class="hint">Esse texto aparece pra quem abrir o link do jogo.</div>
+        </div>
         <button class="btn btn-primary" id="btnCriarJogo" onclick="criarJogo()">＋ Cadastrar jogo</button>
       </div>
     </div>
@@ -299,6 +311,14 @@
         </div>
       </div>
       <div id="elencoArea"></div>
+    </div>
+
+    <!-- modo admins: aprovar/recusar administradores (só dono) -->
+    <div id="homeAdmins" style="display:none">
+      <div class="info-box">
+        Aqui você aprova ou recusa quem se cadastrou como administrador. Só você (dono) vê esta área.
+      </div>
+      <div id="adminsArea"><div class="loader"><div class="spin"></div>Carregando...</div></div>
     </div>
   </section>
 
@@ -387,6 +407,38 @@
       <div id="rankingArea"></div>
     </div>
   </section>
+
+  <!-- ====== VIEW: LOGIN / CADASTRO ADMIN ====== -->
+  <section class="view" id="viewLogin">
+    <div class="eyebrow">Área administrativa</div>
+    <h2 class="section-title">Acesso de administrador</h2>
+    <p class="section-sub">Entre para gerenciar jogos, elencos e resultados.</p>
+    <div class="card">
+      <div class="tabs" style="margin-bottom:16px">
+        <button class="tab active" id="tabLogin" onclick="setAuthTab('login')">Entrar</button>
+        <button class="tab" id="tabCadastro" onclick="setAuthTab('cadastro')">Criar conta</button>
+      </div>
+      <div id="authCadastroNome" class="field" style="display:none">
+        <label for="auNome">Seu nome</label>
+        <input id="auNome" placeholder="Nome completo" />
+      </div>
+      <div class="field">
+        <label for="auEmail">Email</label>
+        <input id="auEmail" type="email" inputmode="email" placeholder="voce@email.com" />
+      </div>
+      <div class="field">
+        <label for="auSenha">Senha</label>
+        <input id="auSenha" type="password" placeholder="Sua senha" />
+      </div>
+      <button class="btn btn-primary" id="btnAuth" onclick="fazerAuth()">Entrar</button>
+      <div id="authMsg" class="hint" style="margin-top:12px;text-align:center"></div>
+    </div>
+  </section>
+
+  <!-- ====== VIEW: PALPITE PÚBLICO (link do jogo) ====== -->
+  <section class="view" id="viewPublico">
+    <div id="publicoArea"><div class="loader"><div class="spin"></div>Carregando jogo...</div></div>
+  </section>
 </main>
 
 <div id="toast"></div>
@@ -402,8 +454,8 @@
 
 <script>
 /* ====================== CONFIG SUPABASE ====================== */
-const SUPABASE_URL = "https://qqwcouliayxvkusyqqxe.supabase.co";
-const SUPABASE_KEY = "sb_publishable_OS33II21fufwr6pKZxT24w_UQTqt7h0";
+const SUPABASE_URL = "https://csurcpcizsxbrlgxlxij.supabase.co";
+const SUPABASE_KEY = "sb_publishable__K7G0-WO_OZvJJpLgHZtfA_sgSIwwnf";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* senha mestre para apagar jogos (proteção contra exclusão acidental) */
@@ -415,6 +467,8 @@ let PDVS = [];
 let JOGOS = [];
 let SELECOES = [];
 let jogoAtual = null;
+let ME = null;        // registro do admin logado (bolao_admins)
+let SESSION = null;   // sessão do Supabase Auth
 
 /* mini util pra bandeira por nome de país */
 const FLAGS = {
@@ -440,6 +494,15 @@ function toast(msg,type){
   clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2800);
 }
 
+/* ====================== MODAL ====================== */
+function openModal(html){
+  document.getElementById('modalContent').innerHTML=html;
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeModal(){
+  document.getElementById('modalBg').classList.remove('show');
+}
+
 /* ====================== NAVEGAÇÃO ====================== */
 function showView(id){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
@@ -450,12 +513,15 @@ function showView(id){
 function goHome(){jogoAtual=null;showView('viewHome');renderJogos();}
 
 function setHomeMode(mode){
-  document.getElementById('segJogos').classList.toggle('active',mode==='jogos');
-  document.getElementById('segAdmin').classList.toggle('active',mode==='admin');
-  document.getElementById('segElencos').classList.toggle('active',mode==='elencos');
+  ['jogos','admin','elencos','admins'].forEach(m=>{
+    const seg=document.getElementById('seg'+m.charAt(0).toUpperCase()+m.slice(1));
+    if(seg)seg.classList.toggle('active',mode===m);
+  });
   document.getElementById('homeJogos').style.display=mode==='jogos'?'block':'none';
   document.getElementById('homeAdmin').style.display=mode==='admin'?'block':'none';
   document.getElementById('homeElencos').style.display=mode==='elencos'?'block':'none';
+  document.getElementById('homeAdmins').style.display=mode==='admins'?'block':'none';
+  if(mode==='admins')renderAdmins();
 }
 
 function setTab(sub){
@@ -476,8 +542,133 @@ function maskTel(el){
   el.value=v;
 }
 
-/* ====================== CARREGAR DADOS INICIAIS ====================== */
-async function init(){
+/* ====================== BOOT / ROTEAMENTO ====================== */
+async function boot(){
+  // 1) link público de jogo? (?j=CODIGO) — não exige login
+  const params=new URLSearchParams(location.search);
+  const codigo=params.get('j');
+  if(codigo){
+    document.getElementById('headAuth').style.display='none';
+    await abrirPalpitePublico(codigo);
+    return;
+  }
+  // 2) fluxo admin: verifica sessão
+  const {data:{session}}=await sb.auth.getSession();
+  SESSION=session;
+  if(!session){
+    mostrarLogin();
+    return;
+  }
+  // logado: busca registro de admin
+  await carregarMeuAdmin();
+  if(!ME){ // sessão sem registro (raro) — desloga
+    await sb.auth.signOut();
+    mostrarLogin();
+    return;
+  }
+  if(ME.status!=='aprovado'){
+    mostrarAguardando();
+    return;
+  }
+  // admin aprovado: carrega o painel
+  await entrarNoPainel();
+}
+
+async function carregarMeuAdmin(){
+  if(!SESSION)return;
+  const {data}=await sb.from('bolao_admins').select('*').eq('id',SESSION.user.id).maybeSingle();
+  ME=data||null;
+}
+
+function mostrarLogin(){
+  document.getElementById('headAuth').style.display='none';
+  setAuthTab('login');
+  showView('viewLogin');
+}
+
+function mostrarAguardando(){
+  const email=SESSION?SESSION.user.email:'';
+  document.getElementById('publicoArea').innerHTML=`
+    <div class="card" style="text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:10px">⏳</div>
+      <h3 style="font-family:'Archivo Black';color:var(--campo);margin-bottom:8px">Aguardando aprovação</h3>
+      <p class="section-sub">Sua conta (<b>${esc(email)}</b>) foi criada e está aguardando aprovação do administrador responsável. Você receberá acesso assim que for aprovada.</p>
+      <button class="btn btn-ghost" onclick="sairConta()" style="margin-top:12px">Sair</button>
+    </div>`;
+  document.getElementById('headAuth').style.display='none';
+  showView('viewPublico');
+}
+
+async function entrarNoPainel(){
+  // mostra botão sair no header
+  const ha=document.getElementById('headAuth');
+  ha.style.display='block';ha.textContent='Sair';
+  // aba de admins só pro dono
+  document.getElementById('segAdmins').style.display=ME.dono?'block':'none';
+  await carregarDados();
+  setHomeMode('jogos');
+  showView('viewHome');
+}
+
+function headAuthClick(){ sairConta(); }
+
+async function sairConta(){
+  await sb.auth.signOut();
+  ME=null;SESSION=null;
+  location.href=location.pathname; // limpa query e recarrega
+}
+
+/* ====================== AUTENTICAÇÃO ====================== */
+let authTab='login';
+function setAuthTab(tab){
+  authTab=tab;
+  document.getElementById('tabLogin').classList.toggle('active',tab==='login');
+  document.getElementById('tabCadastro').classList.toggle('active',tab==='cadastro');
+  document.getElementById('authCadastroNome').style.display=tab==='cadastro'?'block':'none';
+  document.getElementById('btnAuth').textContent=tab==='cadastro'?'Criar conta':'Entrar';
+  document.getElementById('authMsg').textContent='';
+}
+
+async function fazerAuth(){
+  const email=document.getElementById('auEmail').value.trim().toLowerCase();
+  const senha=document.getElementById('auSenha').value;
+  const nome=document.getElementById('auNome').value.trim();
+  const msg=document.getElementById('authMsg');
+  if(!email||!senha){msg.textContent='Preencha email e senha.';return;}
+  const btn=document.getElementById('btnAuth');btn.disabled=true;
+  if(authTab==='cadastro'){
+    btn.textContent='Criando...';
+    const {data,error}=await sb.auth.signUp({email,password:senha});
+    if(error){msg.textContent='Erro: '+error.message;btn.disabled=false;btn.textContent='Criar conta';return;}
+    // cria o registro de admin (pendente). Se for o email do dono, marca como dono+aprovado.
+    const ehDono = email==='iagonascimento@rodaconveniencia.com.br';
+    if(data.user){
+      await sb.from('bolao_admins').insert({
+        id:data.user.id, email, nome:nome||null,
+        status: ehDono?'aprovado':'pendente', dono: ehDono
+      });
+    }
+    msg.style.color='var(--ok)';
+    msg.innerHTML='Conta criada! Confirme seu email (verifique a caixa de entrada) e depois faça login.'+(ehDono?'':'<br>Após confirmar, aguarde a aprovação do administrador.');
+    btn.disabled=false;btn.textContent='Criar conta';
+    return;
+  }
+  // login
+  btn.textContent='Entrando...';
+  const {error}=await sb.auth.signInWithPassword({email,password:senha});
+  if(error){
+    msg.style.color='var(--erro)';
+    msg.textContent = error.message.includes('Email not confirmed')
+      ? 'Confirme seu email antes de entrar (verifique sua caixa de entrada).'
+      : 'Email ou senha incorretos.';
+    btn.disabled=false;btn.textContent='Entrar';return;
+  }
+  // logou: re-roteia
+  location.reload();
+}
+
+/* ====================== CARREGAR DADOS (admin) ====================== */
+async function carregarDados(){
   // PDVs
   const {data:pdvs,error:e1}=await sb.from('bolao_pdvs').select('*').order('nome');
   if(e1){toast('Erro ao carregar PDVs',"err");console.error(e1);}
@@ -542,11 +733,15 @@ function renderJogos(){
         <span>📅 ${fmtData(j.data_jogo)}${j.hora_jogo?' · '+j.hora_jogo:''}</span>
         <span class="chip-status ${fin?'chip-fin':'chip-aberto'}">${fin?'Encerrado':'Aberto'}</span>
       </div>
+      <button class="btn-link" onclick="event.stopPropagation();copiarLink('${j.codigo||''}')">🔗 Copiar link de palpite</button>
     </div>`;
   }).join('');
 }
 
 /* ====================== CRIAR JOGO ====================== */
+function gerarCodigo(){
+  return Math.random().toString(36).slice(2,8); // 6 chars
+}
 async function criarJogo(){
   const pdv=document.getElementById('novoPdv').value;
   const casa=document.getElementById('timeCasa').value.trim();
@@ -554,13 +749,16 @@ async function criarJogo(){
   const data=document.getElementById('dataJogo').value;
   const hora=document.getElementById('horaJogo').value;
   const kits=parseInt(document.getElementById('qtdKits').value)||5;
+  const desc=document.getElementById('descJogo').value.trim();
   if(!pdv){toast('Selecione o PDV',"err");return;}
   if(!casa||!fora){toast('Preencha os dois times',"err");return;}
   if(!data){toast('Informe a data do jogo',"err");return;}
   const btn=document.getElementById('btnCriarJogo');btn.disabled=true;btn.textContent='Salvando...';
-  const {error}=await sb.from('bolao_jogos').insert({
-    pdv_id:pdv,time_casa:casa,time_fora:fora,data_jogo:data,hora_jogo:hora||null,qtd_kits:kits
-  });
+  const codigo=gerarCodigo();
+  const {data:novo,error}=await sb.from('bolao_jogos').insert({
+    pdv_id:pdv,time_casa:casa,time_fora:fora,data_jogo:data,hora_jogo:hora||null,
+    qtd_kits:kits,codigo,descricao:desc||null
+  }).select().maybeSingle();
   btn.disabled=false;btn.textContent='＋ Cadastrar jogo';
   if(error){toast('Erro ao criar jogo',"err");console.error(error);return;}
   toast('Jogo cadastrado!',"ok");
@@ -569,8 +767,42 @@ async function criarJogo(){
   document.getElementById('dataJogo').value='';
   document.getElementById('horaJogo').value='';
   document.getElementById('qtdKits').value='5';
+  document.getElementById('descJogo').value='';
   await loadJogos();
   setHomeMode('jogos');
+  // mostra o link pronto pra compartilhar
+  if(novo&&novo.codigo)mostrarLinkCriado(novo);
+}
+
+function linkDoJogo(codigo){
+  return location.origin+location.pathname+'?j='+codigo;
+}
+
+function mostrarLinkCriado(j){
+  const url=linkDoJogo(j.codigo);
+  openModal(`
+    <div class="modal-handle"></div>
+    <h3>🔗 Link do jogo criado!</h3>
+    <p class="section-sub" style="text-align:center">Compartilhe este link no grupo do condomínio. Quem abrir vai direto pra tela de palpite.</p>
+    <div style="background:#fff;border:1.5px solid var(--borda);border-radius:12px;padding:12px;word-break:break-all;font-size:.85rem;margin-bottom:14px">${esc(url)}</div>
+    <button class="btn btn-gold" onclick="copiarTexto('${esc(url)}')">📋 Copiar link</button>
+    <button class="btn btn-ghost" onclick="closeModal()" style="margin-top:8px">Fechar</button>
+  `);
+}
+
+function copiarLink(codigo){
+  if(!codigo){toast('Jogo sem link',"err");return;}
+  copiarTexto(linkDoJogo(codigo));
+}
+function copiarTexto(txt){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(()=>toast('Link copiado!',"ok")).catch(()=>fallbackCopy(txt));
+  }else fallbackCopy(txt);
+}
+function fallbackCopy(txt){
+  const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();
+  try{document.execCommand('copy');toast('Link copiado!',"ok");}catch(e){toast('Copie manualmente',"err");}
+  document.body.removeChild(t);
 }
 
 /* ====================== APAGAR JOGO ====================== */
@@ -911,8 +1143,148 @@ async function removeJogador(idx){
   s.jogadores=jogs;renderElenco();
 }
 
+/* ====================== PALPITE PÚBLICO (morador via link) ====================== */
+async function abrirPalpitePublico(codigo){
+  showView('viewPublico');
+  const area=document.getElementById('publicoArea');
+  // busca o jogo pelo código
+  const {data:j,error}=await sb.from('bolao_jogos').select('*').eq('codigo',codigo).maybeSingle();
+  if(error||!j){
+    area.innerHTML=`<div class="card" style="text-align:center"><div style="font-size:2.5rem">🔍</div><h3 style="font-family:'Archivo Black';color:var(--campo);margin:8px 0">Jogo não encontrado</h3><p class="section-sub">Esse link pode estar incorreto ou o jogo foi removido.</p></div>`;
+    return;
+  }
+  // carrega seleções (pra montar a lista de jogadores)
+  await loadSelecoesPublico();
+  // nome do PDV
+  const {data:pdv}=await sb.from('bolao_pdvs').select('nome').eq('id',j.pdv_id).maybeSingle();
+  const pdvNm=pdv?pdv.nome:'';
+  jogoAtual=j; // reaproveita lerChecklist e montarBlocosPalpite
+
+  const encerrado=j.finalizado;
+  const explic=j.descricao||'Faça seu palpite de placar e marque quem você acha que vai fazer gol. Os '+ (j.qtd_kits||5) +' que mais acertarem ganham um kit! Em caso de empate, vale quem acertar mais goleadores.';
+
+  area.innerHTML=`
+    <div class="card" style="text-align:center">
+      <span class="pdv-tag">${esc(pdvNm)}</span>
+      <div class="match">
+        <div class="team"><div class="flag">${flag(j.time_casa)}</div><div class="tname">${esc(j.time_casa)}</div></div>
+        ${encerrado?`<div class="score-final">${j.placar_casa} × ${j.placar_fora}</div>`:`<div class="vs">×</div>`}
+        <div class="team"><div class="flag">${flag(j.time_fora)}</div><div class="tname">${esc(j.time_fora)}</div></div>
+      </div>
+      <div class="game-meta" style="justify-content:center;gap:16px;border-top:none;padding-top:4px">
+        <span>📅 ${fmtData(j.data_jogo)}${j.hora_jogo?' · '+j.hora_jogo:''}</span>
+        <span>🎁 ${j.qtd_kits} kits</span>
+      </div>
+    </div>
+    <div class="info-box">${esc(explic)}</div>
+    ${encerrado?`<div class="card" style="text-align:center"><div style="font-size:2rem">🏁</div><h3 style="font-family:'Archivo Black';color:var(--campo);margin:8px 0">Palpites encerrados</h3><p class="section-sub">Este jogo já foi finalizado. Obrigado por participar!</p></div>`:`
+    <div class="card">
+      <div class="field"><label for="ppNome">Nome completo *</label><input id="ppNome" placeholder="Seu nome" /></div>
+      <div class="row2">
+        <div class="field"><label for="ppBloco">Bloco</label><input id="ppBloco" placeholder="Ex: B" /></div>
+        <div class="field"><label for="ppApto">Apartamento</label><input id="ppApto" placeholder="Ex: 302" /></div>
+      </div>
+      <div class="field"><label for="ppTel">Telefone (WhatsApp) *</label><input id="ppTel" type="tel" inputmode="numeric" placeholder="(21) 9 9999-9999" oninput="maskTel(this)" /></div>
+      <div class="field">
+        <label>Seu palpite de placar *</label>
+        <div class="placar-box">
+          <div class="pteam">${esc(j.time_casa)}</div>
+          <input id="ppCasa" type="number" min="0" inputmode="numeric" placeholder="0" />
+          <span class="placar-x">×</span>
+          <input id="ppFora" type="number" min="0" inputmode="numeric" placeholder="0" />
+          <div class="pteam">${esc(j.time_fora)}</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Jogadores que vão marcar gol (desempate)</label>
+        <div id="ppGol"></div>
+        <div class="hint">Marque um ou mais em cada seleção. Quanto mais goleadores você acertar, melhor no desempate.</div>
+      </div>
+      <button class="btn btn-gold" id="btnPalpitePublico" onclick="salvarPalpitePublico('${j.id}')">✓ Confirmar palpite</button>
+    </div>`}
+  `;
+  if(!encerrado)montarBlocosPalpite('ppGol',j);
+}
+
+async function loadSelecoesPublico(){
+  const {data}=await sb.from('bolao_selecoes').select('*').order('nome');
+  SELECOES=data||[];
+}
+
+async function salvarPalpitePublico(jogoId){
+  const nome=document.getElementById('ppNome').value.trim();
+  const bloco=document.getElementById('ppBloco').value.trim();
+  const apto=document.getElementById('ppApto').value.trim();
+  const tel=document.getElementById('ppTel').value.trim();
+  const casa=document.getElementById('ppCasa').value;
+  const fora=document.getElementById('ppFora').value;
+  const gol=lerChecklist('ppGol');
+  if(!nome){toast('Informe seu nome',"err");return;}
+  if(!tel||tel.replace(/\D/g,'').length<10){toast('Telefone inválido',"err");return;}
+  if(casa===''||fora===''){toast('Preencha o placar do palpite',"err");return;}
+  const btn=document.getElementById('btnPalpitePublico');btn.disabled=true;btn.textContent='Salvando...';
+  const {error}=await sb.from('bolao_palpites').insert({
+    jogo_id:jogoId,nome,bloco:bloco||null,apartamento:apto||null,telefone:tel,
+    palpite_casa:parseInt(casa),palpite_fora:parseInt(fora),jogador_gol:gol||null
+  });
+  if(error){toast('Erro ao salvar',"err");console.error(error);btn.disabled=false;btn.textContent='✓ Confirmar palpite';return;}
+  // tela de sucesso
+  document.getElementById('publicoArea').innerHTML=`
+    <div class="card" style="text-align:center">
+      <div style="font-size:3rem;margin-bottom:8px">🍀</div>
+      <h3 style="font-family:'Archivo Black';color:var(--campo);margin-bottom:8px">Palpite registrado!</h3>
+      <p class="section-sub">Boa sorte, ${esc(nome)}! Seu palpite foi salvo. Fique de olho no resultado.</p>
+    </div>`;
+}
+
+/* ====================== GESTÃO DE ADMINS (só dono) ====================== */
+async function renderAdmins(){
+  const area=document.getElementById('adminsArea');
+  area.innerHTML='<div class="loader"><div class="spin"></div>Carregando...</div>';
+  const {data,error}=await sb.from('bolao_admins').select('*').order('created_at');
+  if(error){area.innerHTML='<div class="empty">Erro ao carregar.</div>';return;}
+  if(!data.length){area.innerHTML='<div class="empty"><p>Nenhum administrador cadastrado.</p></div>';return;}
+  const pend=data.filter(a=>a.status==='pendente');
+  const aprov=data.filter(a=>a.status==='aprovado');
+  const recus=data.filter(a=>a.status==='recusado');
+  let html='';
+  function linha(a){
+    const tags=[a.dono?'<span class="kit-badge">DONO</span>':'',
+      a.status==='aprovado'?'<span class="chip-status chip-aberto">Aprovado</span>':'',
+      a.status==='pendente'?'<span class="chip-status chip-fin">Pendente</span>':'',
+      a.status==='recusado'?'<span class="chip-status" style="background:#fdeaea;color:var(--erro)">Recusado</span>':''
+    ].filter(Boolean).join(' ');
+    let acoes='';
+    if(!a.dono){
+      if(a.status!=='aprovado')acoes+=`<button class="btn btn-sm" style="background:var(--ok);color:#fff" onclick="setStatusAdmin('${a.id}','aprovado')">✓ Aprovar</button> `;
+      if(a.status!=='recusado')acoes+=`<button class="btn btn-sm btn-danger" onclick="setStatusAdmin('${a.id}','recusado')">Recusar</button>`;
+    }
+    return `<div class="rank-item" style="display:block">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+        <div class="rank-info">
+          <div class="rank-name">${esc(a.nome||a.email)}</div>
+          <div class="rank-meta">${esc(a.email)}</div>
+          <div style="margin-top:6px">${tags}</div>
+        </div>
+      </div>
+      ${acoes?`<div style="display:flex;gap:8px;margin-top:10px">${acoes}</div>`:''}
+    </div>`;
+  }
+  if(pend.length){html+='<div class="eyebrow" style="margin-top:8px">Aguardando aprovação</div>'+pend.map(linha).join('');}
+  html+='<div class="eyebrow" style="margin-top:18px">Aprovados</div>'+aprov.map(linha).join('');
+  if(recus.length){html+='<div class="eyebrow" style="margin-top:18px">Recusados</div>'+recus.map(linha).join('');}
+  area.innerHTML=html;
+}
+
+async function setStatusAdmin(id,status){
+  const {error}=await sb.from('bolao_admins').update({status}).eq('id',id);
+  if(error){toast('Erro ao atualizar',"err");console.error(error);return;}
+  toast(status==='aprovado'?'Administrador aprovado!':'Administrador recusado',"ok");
+  renderAdmins();
+}
+
 /* ====================== START ====================== */
-init();
+boot();
 </script>
 </body>
 </html>
