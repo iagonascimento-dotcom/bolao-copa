@@ -89,6 +89,7 @@
     background:var(--campo);color:#fff;padding:4px 9px;border-radius:6px;margin-bottom:12px;
   }
   .game-card.fin .pdv-tag{background:var(--ouro-2)}
+  .pdv-tag.pdv-temp{background:#b45309 !important;border:1px dashed #fcd34d}
   .match{display:flex;align-items:center;justify-content:center;gap:10px;margin:6px 0 12px}
   .team{flex:1;text-align:center}
   .team .flag{font-size:2rem;line-height:1}
@@ -252,7 +253,9 @@
       <div class="card">
         <div class="field">
           <label for="novoPdv">PDV (local da ação) *</label>
-          <select id="novoPdv"><option value="">Selecione o PDV...</option></select>
+          <input id="novoPdv" list="listaPdvs" placeholder="Digite para buscar o PDV..." autocomplete="off" oninput="checarPdvTemp()" />
+          <datalist id="listaPdvs"></datalist>
+          <div class="hint" id="pdvHint">Comece a digitar o nome do PDV. Se não existir, ele será criado como temporário (TEMP).</div>
         </div>
         <div class="row2">
           <div class="field">
@@ -464,6 +467,7 @@ let senhaLiberada = false; // libera durante a sessão após acertar 1x
 
 /* ====================== ESTADO ====================== */
 let PDVS = [];
+let PDVS_TEMP = [];
 let JOGOS = [];
 let SELECOES = [];
 let jogoAtual = null;
@@ -690,15 +694,38 @@ async function fazerAuth(){
 
 /* ====================== CARREGAR DADOS (admin) ====================== */
 async function carregarDados(){
-  // PDVs
+  // PDVs oficiais
   const {data:pdvs,error:e1}=await sb.from('bolao_pdvs').select('*').order('nome');
   if(e1){toast('Erro ao carregar PDVs',"err");console.error(e1);}
   PDVS=pdvs||[];
-  const optsPdv=PDVS.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('');
-  document.getElementById('novoPdv').innerHTML='<option value="">Selecione o PDV...</option>'+optsPdv;
-  document.getElementById('filtroPdv').innerHTML='<option value="">Todos os PDVs</option>'+optsPdv;
+  // PDVs temporários
+  const {data:temps}=await sb.from('bolao_pdvs_temp').select('*').order('nome');
+  PDVS_TEMP=temps||[];
+  popularPdvs();
   await loadSelecoes();
   await loadJogos();
+}
+
+function popularPdvs(){
+  // datalist de busca no novo jogo: só os oficiais (temp aparece se digitar)
+  document.getElementById('listaPdvs').innerHTML=PDVS.map(p=>`<option value="${esc(p.nome)}">`).join('');
+  // filtro: oficiais + temporários (com marca)
+  let opt='<option value="">Todos os PDVs</option>';
+  opt+=PDVS.map(p=>`<option value="pdv:${p.id}">${esc(p.nome)}</option>`).join('');
+  opt+=PDVS_TEMP.map(t=>`<option value="temp:${esc(t.nome)}">${esc(t.nome)} (TEMP)</option>`).join('');
+  document.getElementById('filtroPdv').innerHTML=opt;
+}
+
+/* dá feedback ao digitar: PDV existente ou será criado como TEMP */
+function checarPdvTemp(){
+  const v=document.getElementById('novoPdv').value.trim();
+  const hint=document.getElementById('pdvHint');
+  if(!v){hint.textContent='Comece a digitar o nome do PDV. Se não existir, ele será criado como temporário (TEMP).';hint.style.color='';return;}
+  const existe=PDVS.some(p=>p.nome.toLowerCase()===v.toLowerCase());
+  const existeTemp=PDVS_TEMP.some(t=>t.nome.toLowerCase()===v.toLowerCase());
+  if(existe){hint.textContent='✓ PDV oficial encontrado.';hint.style.color='var(--ok)';}
+  else if(existeTemp){hint.textContent='✓ PDV temporário existente (TEMP).';hint.style.color='var(--ouro-2)';}
+  else{hint.textContent='⚠️ PDV novo — será criado como TEMPORÁRIO (TEMP).';hint.style.color='var(--ouro-2)';}
 }
 
 async function loadSelecoes(){
@@ -727,14 +754,29 @@ async function loadJogos(){
 }
 
 /* ====================== RENDER LISTA DE JOGOS ====================== */
-function pdvNome(id){const p=PDVS.find(x=>x.id===id);return p?p.nome:'PDV';}
+function pdvNome(j){
+  // aceita o objeto jogo (preferencial) ou um id solto (retrocompat)
+  if(j && typeof j==='object'){
+    if(j.pdv_temp_nome)return j.pdv_temp_nome+' (TEMP)';
+    const p=PDVS.find(x=>x.id===j.pdv_id);return p?p.nome:'PDV';
+  }
+  const p=PDVS.find(x=>x.id===j);return p?p.nome:'PDV';
+}
 function esc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmtData(d){if(!d)return'';const[y,m,dd]=d.split('-');return `${dd}/${m}/${y}`;}
 
 function renderJogos(){
   const filtro=document.getElementById('filtroPdv').value;
   let lista=JOGOS;
-  if(filtro)lista=lista.filter(j=>j.pdv_id===filtro);
+  if(filtro){
+    if(filtro.startsWith('pdv:')){
+      const id=filtro.slice(4);
+      lista=lista.filter(j=>j.pdv_id===id);
+    }else if(filtro.startsWith('temp:')){
+      const nm=filtro.slice(5);
+      lista=lista.filter(j=>(j.pdv_temp_nome||'')===nm);
+    }
+  }
   const cont=document.getElementById('listaJogos');
   if(!lista.length){
     cont.innerHTML=`<div class="empty"><div class="emo">⚽</div><p>Nenhum jogo cadastrado${filtro?' neste PDV':''}.<br>Use "Cadastrar jogo" para começar.</p></div>`;
@@ -742,9 +784,10 @@ function renderJogos(){
   }
   cont.innerHTML=lista.map(j=>{
     const fin=j.finalizado;
+    const temp=!!j.pdv_temp_nome;
     return `<div class="card game-card ${fin?'fin':''}" onclick="abrirJogo('${j.id}')">
       <button class="del-jogo" onclick="event.stopPropagation();pedirApagarJogo('${j.id}')" aria-label="Apagar jogo">🗑</button>
-      <span class="pdv-tag">${esc(pdvNome(j.pdv_id))}</span>
+      <span class="pdv-tag ${temp?'pdv-temp':''}">${esc(temp?j.pdv_temp_nome:pdvNome(j))}${temp?' · TEMP':''}</span>
       <div class="match">
         <div class="team"><div class="flag">${flag(j.time_casa)}</div><div class="tname">${esc(j.time_casa)}</div></div>
         ${fin?`<div class="score-final">${j.placar_casa} × ${j.placar_fora}</div>`:`<div class="vs">×</div>`}
@@ -764,34 +807,53 @@ function gerarCodigo(){
   return Math.random().toString(36).slice(2,8); // 6 chars
 }
 async function criarJogo(){
-  const pdv=document.getElementById('novoPdv').value;
+  const pdvNomeDigitado=document.getElementById('novoPdv').value.trim();
   const casa=document.getElementById('timeCasa').value.trim();
   const fora=document.getElementById('timeFora').value.trim();
   const data=document.getElementById('dataJogo').value;
   const hora=document.getElementById('horaJogo').value;
   const kits=parseInt(document.getElementById('qtdKits').value)||5;
   const desc=document.getElementById('descJogo').value.trim();
-  if(!pdv){toast('Selecione o PDV',"err");return;}
+  if(!pdvNomeDigitado){toast('Informe o PDV',"err");return;}
   if(!casa||!fora){toast('Preencha os dois times',"err");return;}
   if(!data){toast('Informe a data do jogo',"err");return;}
   const btn=document.getElementById('btnCriarJogo');btn.disabled=true;btn.textContent='Salvando...';
+
+  // resolve o PDV: oficial, temporário existente, ou novo temporário
+  let pdv_id=null, pdv_temp_nome=null;
+  const oficial=PDVS.find(p=>p.nome.toLowerCase()===pdvNomeDigitado.toLowerCase());
+  if(oficial){
+    pdv_id=oficial.id;
+  }else{
+    // é temporário — vê se já existe, senão cria
+    let temp=PDVS_TEMP.find(t=>t.nome.toLowerCase()===pdvNomeDigitado.toLowerCase());
+    if(!temp){
+      const {data:novoTemp,error:eTemp}=await sb.from('bolao_pdvs_temp').insert({nome:pdvNomeDigitado}).select().maybeSingle();
+      if(eTemp){toast('Erro ao criar PDV temporário',"err");console.error(eTemp);btn.disabled=false;btn.textContent='＋ Cadastrar jogo';return;}
+      temp=novoTemp;PDVS_TEMP.push(temp);
+    }
+    pdv_temp_nome=temp.nome;
+  }
+
   const codigo=gerarCodigo();
   const {data:novo,error}=await sb.from('bolao_jogos').insert({
-    pdv_id:pdv,time_casa:casa,time_fora:fora,data_jogo:data,hora_jogo:hora||null,
+    pdv_id, pdv_temp_nome, time_casa:casa,time_fora:fora,data_jogo:data,hora_jogo:hora||null,
     qtd_kits:kits,codigo,descricao:desc||null
   }).select().maybeSingle();
   btn.disabled=false;btn.textContent='＋ Cadastrar jogo';
   if(error){toast('Erro ao criar jogo',"err");console.error(error);return;}
-  toast('Jogo cadastrado!',"ok");
+  toast(pdv_temp_nome?'Jogo criado (PDV temporário)!':'Jogo cadastrado!',"ok");
+  document.getElementById('novoPdv').value='';
   document.getElementById('timeCasa').value='';
   document.getElementById('timeFora').value='';
   document.getElementById('dataJogo').value='';
   document.getElementById('horaJogo').value='';
   document.getElementById('qtdKits').value='5';
   document.getElementById('descJogo').value='';
+  checarPdvTemp();
+  popularPdvs();
   await loadJogos();
   setHomeMode('jogos');
-  // mostra o link pronto pra compartilhar
   if(novo&&novo.codigo)mostrarLinkCriado(novo);
 }
 
@@ -853,7 +915,7 @@ async function abrirJogo(id){
   if(!jogoAtual)return;
   const j=jogoAtual;
   document.getElementById('jogoHeader').innerHTML=`
-    <span class="pdv-tag">${esc(pdvNome(j.pdv_id))}</span>
+    <span class="pdv-tag ${j.pdv_temp_nome?'pdv-temp':''}">${esc(j.pdv_temp_nome?j.pdv_temp_nome+' · TEMP':pdvNome(j))}</span>
     <div class="match">
       <div class="team"><div class="flag">${flag(j.time_casa)}</div><div class="tname">${esc(j.time_casa)}</div></div>
       ${j.finalizado?`<div class="score-final">${j.placar_casa} × ${j.placar_fora}</div>`:`<div class="vs">×</div>`}
@@ -1177,8 +1239,13 @@ async function abrirPalpitePublico(codigo){
   // carrega seleções (pra montar a lista de jogadores)
   await loadSelecoesPublico();
   // nome do PDV
-  const {data:pdv}=await sb.from('bolao_pdvs').select('nome').eq('id',j.pdv_id).maybeSingle();
-  const pdvNm=pdv?pdv.nome:'';
+  let pdvNm='';
+  if(j.pdv_temp_nome){
+    pdvNm=j.pdv_temp_nome;
+  }else if(j.pdv_id){
+    const {data:pdv}=await sb.from('bolao_pdvs').select('nome').eq('id',j.pdv_id).maybeSingle();
+    pdvNm=pdv?pdv.nome:'';
+  }
   jogoAtual=j; // reaproveita lerChecklist e montarBlocosPalpite
 
   const encerrado=j.finalizado;
