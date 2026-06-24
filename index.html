@@ -112,6 +112,22 @@
   input:focus,select:focus{outline:none;border-color:var(--linha);box-shadow:0 0 0 3px rgba(29,122,87,.15)}
   select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%230a3d2e' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:40px}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  /* ===== dropdown customizado de PDV ===== */
+  .pdv-select{position:relative}
+  .pdv-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:'Archivo';font-size:1rem;padding:13px 14px;border:1.5px solid var(--borda);border-radius:12px;background:var(--branco);color:var(--carvao);cursor:pointer;text-align:left}
+  .pdv-trigger:active{border-color:var(--linha)}
+  .pdv-placeholder{color:var(--cinza)}
+  .pdv-caret{color:var(--campo);font-size:.8rem;flex:none}
+  .pdv-drop{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:60;background:var(--branco);border:1.5px solid var(--borda);border-radius:12px;box-shadow:0 10px 30px rgba(10,61,46,.18);overflow:hidden}
+  .pdv-drop.open{display:block}
+  .pdv-busca{width:100%;border:none;border-bottom:1.5px solid var(--borda);border-radius:0;font-size:.95rem;padding:12px 14px}
+  .pdv-busca:focus{outline:none;box-shadow:none;border-bottom-color:var(--linha)}
+  .pdv-opts{max-height:240px;overflow-y:auto}
+  .pdv-opt{padding:11px 14px;font-size:.92rem;cursor:pointer;border-bottom:1px solid #f0ece1}
+  .pdv-opt:active,.pdv-opt.hl{background:#eef5f1}
+  .pdv-opt.is-temp{color:#b45309;font-weight:600}
+  .pdv-novo{padding:12px 14px;border-top:1px solid var(--borda);background:#fdf6e0}
+  .pdv-novo button{width:100%;background:linear-gradient(135deg,var(--ouro),var(--ouro-2));color:var(--campo);border:none;font-family:'Archivo';font-weight:800;font-size:.88rem;padding:11px;border-radius:10px;cursor:pointer}
   .placar-box{display:flex;align-items:center;justify-content:center;gap:14px;margin:8px 0}
   .placar-box input{width:72px;text-align:center;font-family:'Archivo Black';font-size:1.6rem;padding:10px}
   .placar-box .pteam{flex:1;text-align:center;font-family:'Archivo Black';font-size:.85rem;color:var(--campo)}
@@ -252,23 +268,50 @@
     <div id="homeAdmin" style="display:none">
       <div class="card">
         <div class="field">
-          <label for="novoPdv">PDV (local da ação) *</label>
-          <input id="novoPdv" list="listaPdvs" placeholder="Digite para buscar o PDV..." autocomplete="off" oninput="checarPdvTemp()" />
-          <datalist id="listaPdvs"></datalist>
-          <div class="hint" id="pdvHint">Comece a digitar o nome do PDV. Se não existir, ele será criado como temporário (TEMP).</div>
-        </div>
-        <div class="row2">
-          <div class="field">
-            <label for="timeCasa">Time da casa *</label>
-            <input id="timeCasa" list="listaSelecoes" placeholder="Ex: Brasil" />
+          <label>PDV (local da ação) *</label>
+          <div class="pdv-select" id="pdvSelect">
+            <button type="button" class="pdv-trigger" id="pdvTrigger" onclick="togglePdvDrop(event)">
+              <span id="pdvTriggerText" class="pdv-placeholder">Selecione o PDV...</span>
+              <span class="pdv-caret">▾</span>
+            </button>
+            <div class="pdv-drop" id="pdvDrop">
+              <input type="text" id="pdvBusca" class="pdv-busca" placeholder="🔍 Buscar PDV..." autocomplete="off" oninput="filtrarPdvDrop()" onclick="event.stopPropagation()" />
+              <div class="pdv-opts" id="pdvOpts"></div>
+              <div class="pdv-novo" id="pdvNovo" style="display:none"></div>
+            </div>
           </div>
-          <div class="field">
-            <label for="timeFora">Time visitante *</label>
-            <input id="timeFora" list="listaSelecoes" placeholder="Ex: Marrocos" />
-          </div>
+          <input type="hidden" id="novoPdv" />
+          <div class="hint" id="pdvHint">Clique para ver a lista. Se o PDV não existir, você pode adicionar como temporário (TEMP).</div>
         </div>
-        <datalist id="listaSelecoes"></datalist>
-        <div class="hint" style="margin:-8px 0 14px">Times com elenco cadastrado aparecem na lista. Pode digitar um novo também.</div>
+        <div class="field">
+          <label>Time da casa *</label>
+          <div class="pdv-select" id="casaSelect">
+            <button type="button" class="pdv-trigger" id="casaTrigger" onclick="toggleTimeDrop('casa',event)">
+              <span id="casaTriggerText" class="pdv-placeholder">Selecione o time...</span>
+              <span class="pdv-caret">▾</span>
+            </button>
+            <div class="pdv-drop" id="casaDrop">
+              <input type="text" id="casaBusca" class="pdv-busca" placeholder="🔍 Buscar time..." autocomplete="off" oninput="filtrarTimeDrop('casa')" onclick="event.stopPropagation()" />
+              <div class="pdv-opts" id="casaOpts"></div>
+            </div>
+          </div>
+          <input type="hidden" id="timeCasa" />
+        </div>
+        <div class="field">
+          <label>Time visitante *</label>
+          <div class="pdv-select" id="foraSelect">
+            <button type="button" class="pdv-trigger" id="foraTrigger" onclick="toggleTimeDrop('fora',event)">
+              <span id="foraTriggerText" class="pdv-placeholder">Selecione o time...</span>
+              <span class="pdv-caret">▾</span>
+            </button>
+            <div class="pdv-drop" id="foraDrop">
+              <input type="text" id="foraBusca" class="pdv-busca" placeholder="🔍 Buscar time..." autocomplete="off" oninput="filtrarTimeDrop('fora')" onclick="event.stopPropagation()" />
+              <div class="pdv-opts" id="foraOpts"></div>
+            </div>
+          </div>
+          <input type="hidden" id="timeFora" />
+        </div>
+        <div class="hint" style="margin:-8px 0 14px">Os times vêm dos elencos cadastrados. Para adicionar um time novo, use a aba "Elencos".</div>
         <div class="row2">
           <div class="field">
             <label for="dataJogo">Data do jogo *</label>
@@ -707,33 +750,142 @@ async function carregarDados(){
 }
 
 function popularPdvs(){
-  // datalist de busca no novo jogo: só os oficiais (temp aparece se digitar)
-  document.getElementById('listaPdvs').innerHTML=PDVS.map(p=>`<option value="${esc(p.nome)}">`).join('');
-  // filtro: oficiais + temporários (com marca)
+  // filtro (continua um select nativo simples): oficiais + temporários
   let opt='<option value="">Todos os PDVs</option>';
   opt+=PDVS.map(p=>`<option value="pdv:${p.id}">${esc(p.nome)}</option>`).join('');
   opt+=PDVS_TEMP.map(t=>`<option value="temp:${esc(t.nome)}">${esc(t.nome)} (TEMP)</option>`).join('');
   document.getElementById('filtroPdv').innerHTML=opt;
+  // dropdown customizado de novo jogo
+  renderPdvOpts('');
 }
 
-/* dá feedback ao digitar: PDV existente ou será criado como TEMP */
-function checarPdvTemp(){
-  const v=document.getElementById('novoPdv').value.trim();
+/* seleção atual do dropdown de novo jogo */
+let pdvSelecionado=null; // {tipo:'oficial'|'temp', nome}
+
+function renderPdvOpts(busca){
+  const q=(busca||'').trim().toLowerCase();
+  const cont=document.getElementById('pdvOpts');
+  const oficiais=PDVS.filter(p=>p.nome.toLowerCase().includes(q));
+  const temps=PDVS_TEMP.filter(t=>t.nome.toLowerCase().includes(q));
+  let html='';
+  oficiais.forEach(p=>{
+    html+=`<div class="pdv-opt" onclick="escolherPdv('oficial','${esc(p.nome).replace(/'/g,"\\'")}')">${esc(p.nome)}</div>`;
+  });
+  temps.forEach(t=>{
+    html+=`<div class="pdv-opt is-temp" onclick="escolherPdv('temp','${esc(t.nome).replace(/'/g,"\\'")}')">${esc(t.nome)} · TEMP</div>`;
+  });
+  if(!html)html='<div class="pdv-opt" style="color:var(--cinza);cursor:default">Nenhum PDV encontrado</div>';
+  cont.innerHTML=html;
+  // botão de adicionar como temporário (se digitou algo que não existe exatamente)
+  const novoBox=document.getElementById('pdvNovo');
+  const txt=(busca||'').trim();
+  const existeExato = txt && (PDVS.some(p=>p.nome.toLowerCase()===txt.toLowerCase())||PDVS_TEMP.some(t=>t.nome.toLowerCase()===txt.toLowerCase()));
+  if(txt && !existeExato){
+    novoBox.style.display='block';
+    novoBox.innerHTML=`<button type="button" onclick="adicionarPdvTemp('${esc(txt).replace(/'/g,"\\'")}')">＋ Adicionar "${esc(txt)}" como temporário (TEMP)</button>`;
+  }else{
+    novoBox.style.display='none';novoBox.innerHTML='';
+  }
+}
+
+function filtrarPdvDrop(){
+  renderPdvOpts(document.getElementById('pdvBusca').value);
+}
+
+function togglePdvDrop(e){
+  if(e)e.stopPropagation();
+  const drop=document.getElementById('pdvDrop');
+  const abrir=!drop.classList.contains('open');
+  drop.classList.toggle('open',abrir);
+  if(abrir){
+    document.getElementById('pdvBusca').value='';
+    renderPdvOpts('');
+    setTimeout(()=>document.getElementById('pdvBusca').focus(),50);
+  }
+}
+
+function fecharPdvDrop(){
+  document.getElementById('pdvDrop').classList.remove('open');
+}
+
+function escolherPdv(tipo,nome){
+  pdvSelecionado={tipo,nome};
+  document.getElementById('novoPdv').value=nome;
+  const txt=document.getElementById('pdvTriggerText');
+  txt.textContent = tipo==='temp' ? nome+' · TEMP' : nome;
+  txt.classList.remove('pdv-placeholder');
+  txt.style.color = tipo==='temp' ? '#b45309' : 'var(--carvao)';
   const hint=document.getElementById('pdvHint');
-  if(!v){hint.textContent='Comece a digitar o nome do PDV. Se não existir, ele será criado como temporário (TEMP).';hint.style.color='';return;}
-  const existe=PDVS.some(p=>p.nome.toLowerCase()===v.toLowerCase());
-  const existeTemp=PDVS_TEMP.some(t=>t.nome.toLowerCase()===v.toLowerCase());
-  if(existe){hint.textContent='✓ PDV oficial encontrado.';hint.style.color='var(--ok)';}
-  else if(existeTemp){hint.textContent='✓ PDV temporário existente (TEMP).';hint.style.color='var(--ouro-2)';}
-  else{hint.textContent='⚠️ PDV novo — será criado como TEMPORÁRIO (TEMP).';hint.style.color='var(--ouro-2)';}
+  if(tipo==='temp'){hint.textContent='PDV temporário selecionado (TEMP).';hint.style.color='var(--ouro-2)';}
+  else{hint.textContent='✓ PDV oficial selecionado.';hint.style.color='var(--ok)';}
+  fecharPdvDrop();
+}
+
+async function adicionarPdvTemp(nome){
+  const {data:novoTemp,error}=await sb.from('bolao_pdvs_temp').insert({nome}).select().maybeSingle();
+  if(error){toast('Erro ao adicionar PDV',"err");console.error(error);return;}
+  PDVS_TEMP.push(novoTemp);
+  PDVS_TEMP.sort((a,b)=>a.nome.localeCompare(b.nome));
+  popularPdvs();
+  escolherPdv('temp',nome);
+  toast('PDV temporário adicionado!',"ok");
+}
+
+// fecha o dropdown ao clicar fora
+document.addEventListener('click',function(e){
+  const sel=document.getElementById('pdvSelect');
+  if(sel && !sel.contains(e.target))fecharPdvDrop();
+  ['casa','fora'].forEach(function(qual){
+    const s=document.getElementById(qual+'Select');
+    if(s && !s.contains(e.target))document.getElementById(qual+'Drop').classList.remove('open');
+  });
+});
+
+/* ====================== DROPDOWN DE TIMES (casa/fora) ====================== */
+function renderTimeOpts(qual,busca){
+  const q=(busca||'').trim().toLowerCase();
+  const cont=document.getElementById(qual+'Opts');
+  const lista=SELECOES.filter(s=>s.nome.toLowerCase().includes(q));
+  let html='';
+  lista.forEach(s=>{
+    const fl=flag(s.nome);
+    html+=`<div class="pdv-opt" onclick="escolherTime('${qual}','${esc(s.nome).replace(/'/g,"\\'")}')"><span style="margin-right:8px">${fl}</span>${esc(s.nome)}</div>`;
+  });
+  if(!html)html='<div class="pdv-opt" style="color:var(--cinza);cursor:default">Nenhum time encontrado. Cadastre na aba "Elencos".</div>';
+  cont.innerHTML=html;
+}
+function filtrarTimeDrop(qual){
+  renderTimeOpts(qual,document.getElementById(qual+'Busca').value);
+}
+function toggleTimeDrop(qual,e){
+  if(e)e.stopPropagation();
+  const drop=document.getElementById(qual+'Drop');
+  const abrir=!drop.classList.contains('open');
+  // fecha o outro e o de pdv
+  fecharPdvDrop();
+  document.getElementById((qual==='casa'?'fora':'casa')+'Drop').classList.remove('open');
+  drop.classList.toggle('open',abrir);
+  if(abrir){
+    document.getElementById(qual+'Busca').value='';
+    renderTimeOpts(qual,'');
+    setTimeout(()=>document.getElementById(qual+'Busca').focus(),50);
+  }
+}
+function escolherTime(qual,nome){
+  document.getElementById('time'+(qual==='casa'?'Casa':'Fora')).value=nome;
+  const txt=document.getElementById(qual+'TriggerText');
+  txt.textContent=flag(nome)+'  '+nome;
+  txt.classList.remove('pdv-placeholder');txt.style.color='var(--carvao)';
+  document.getElementById(qual+'Drop').classList.remove('open');
 }
 
 async function loadSelecoes(){
   const {data,error}=await sb.from('bolao_selecoes').select('*').order('nome');
   if(error){console.error(error);return;}
   SELECOES=data||[];
-  // datalist de times no cadastro de jogo
-  document.getElementById('listaSelecoes').innerHTML=SELECOES.map(s=>`<option value="${esc(s.nome)}">`).join('');
+  // popula os dropdowns de time (casa e fora)
+  renderTimeOpts('casa','');
+  renderTimeOpts('fora','');
   // selector de elencos
   const sel=document.getElementById('selElenco');
   const atual=sel.value;
@@ -844,13 +996,21 @@ async function criarJogo(){
   if(error){toast('Erro ao criar jogo',"err");console.error(error);return;}
   toast(pdv_temp_nome?'Jogo criado (PDV temporário)!':'Jogo cadastrado!',"ok");
   document.getElementById('novoPdv').value='';
+  pdvSelecionado=null;
+  const trg=document.getElementById('pdvTriggerText');
+  trg.textContent='Selecione o PDV...';trg.classList.add('pdv-placeholder');trg.style.color='';
   document.getElementById('timeCasa').value='';
   document.getElementById('timeFora').value='';
+  ['casa','fora'].forEach(function(qual){
+    const t=document.getElementById(qual+'TriggerText');
+    t.textContent='Selecione o time...';t.classList.add('pdv-placeholder');t.style.color='';
+  });
   document.getElementById('dataJogo').value='';
   document.getElementById('horaJogo').value='';
   document.getElementById('qtdKits').value='5';
   document.getElementById('descJogo').value='';
-  checarPdvTemp();
+  document.getElementById('pdvHint').textContent='Clique para ver a lista. Se o PDV não existir, você pode adicionar como temporário (TEMP).';
+  document.getElementById('pdvHint').style.color='';
   popularPdvs();
   await loadJogos();
   setHomeMode('jogos');
