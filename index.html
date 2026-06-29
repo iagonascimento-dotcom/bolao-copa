@@ -99,6 +99,7 @@
   .game-meta{display:flex;align-items:center;justify-content:space-between;font-size:.82rem;color:var(--cinza);border-top:1px solid var(--borda);padding-top:10px;font-weight:600}
   .chip-status{font-size:.7rem;font-weight:800;padding:4px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
   .chip-aberto{background:#e6f6ee;color:var(--ok)}
+  .chip-fechado{background:#fdeaea;color:#b45309}
   .chip-fin{background:#fdf3d9;color:var(--ouro-2)}
 
   /* ===== FORM ===== */
@@ -318,7 +319,7 @@
             <input id="dataJogo" type="date" />
           </div>
           <div class="field">
-            <label for="horaJogo">Horário</label>
+            <label for="horaJogo">Horário *</label>
             <input id="horaJogo" type="time" />
           </div>
         </div>
@@ -917,6 +918,19 @@ function pdvNome(j){
 function esc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmtData(d){if(!d)return'';const[y,m,dd]=d.split('-');return `${dd}/${m}/${y}`;}
 
+/* retorna true se o jogo já começou (passou data+hora, fuso Brasília) ou foi finalizado */
+function passouHorario(j){
+  if(!j.data_jogo||!j.hora_jogo)return false;
+  // monta a data/hora do jogo no fuso de Brasília (-03:00)
+  const hora=j.hora_jogo.length===5?j.hora_jogo+':00':j.hora_jogo;
+  const inicio=new Date(`${j.data_jogo}T${hora}-03:00`);
+  if(isNaN(inicio.getTime()))return false;
+  return Date.now()>=inicio.getTime();
+}
+function palpitesFechados(j){
+  return j.finalizado || passouHorario(j);
+}
+
 function renderJogos(){
   const filtro=document.getElementById('filtroPdv').value;
   let lista=JOGOS;
@@ -947,7 +961,11 @@ function renderJogos(){
       </div>
       <div class="game-meta">
         <span>📅 ${fmtData(j.data_jogo)}${j.hora_jogo?' · '+j.hora_jogo:''}</span>
-        <span class="chip-status ${fin?'chip-fin':'chip-aberto'}">${fin?'Encerrado':'Aberto'}</span>
+        ${fin
+          ? `<span class="chip-status chip-fin">Encerrado</span>`
+          : (passouHorario(j)
+              ? `<span class="chip-status chip-fechado">Fechado</span>`
+              : `<span class="chip-status chip-aberto">Aberto</span>`)}
       </div>
       <button class="btn-link" onclick="event.stopPropagation();copiarLink('${j.codigo||''}')">🔗 Copiar link de palpite</button>
     </div>`;
@@ -969,6 +987,7 @@ async function criarJogo(){
   if(!pdvNomeDigitado){toast('Informe o PDV',"err");return;}
   if(!casa||!fora){toast('Preencha os dois times',"err");return;}
   if(!data){toast('Informe a data do jogo',"err");return;}
+  if(!hora){toast('Informe o horário do jogo',"err");return;}
   const btn=document.getElementById('btnCriarJogo');btn.disabled=true;btn.textContent='Salvando...';
 
   // resolve o PDV: oficial, temporário existente, ou novo temporário
@@ -1408,25 +1427,20 @@ async function abrirPalpitePublico(codigo){
   }
   jogoAtual=j; // reaproveita lerChecklist e montarBlocosPalpite
 
-  const encerrado=j.finalizado;
+  const finalizado=j.finalizado;
+  const fechado=palpitesFechados(j); // finalizado OU passou do horário
   const explic=j.descricao||'Faça seu palpite de placar e marque quem você acha que vai fazer gol. Os '+ (j.qtd_kits||5) +' que mais acertarem ganham um kit! Em caso de empate, vale quem acertar mais goleadores.';
 
-  area.innerHTML=`
-    <div class="card" style="text-align:center">
-      <span class="pdv-tag">${esc(pdvNm)}</span>
-      <div class="match">
-        <div class="team"><div class="flag">${flag(j.time_casa)}</div><div class="tname">${esc(j.time_casa)}</div></div>
-        ${encerrado?`<div class="score-final">${j.placar_casa} × ${j.placar_fora}</div>`:`<div class="vs">×</div>`}
-        <div class="team"><div class="flag">${flag(j.time_fora)}</div><div class="tname">${esc(j.time_fora)}</div></div>
-      </div>
-      <div class="game-meta" style="justify-content:center;gap:16px;border-top:none;padding-top:4px">
-        <span>📅 ${fmtData(j.data_jogo)}${j.hora_jogo?' · '+j.hora_jogo:''}</span>
-        <span>🎁 ${j.qtd_kits} kits</span>
-      </div>
-    </div>
-    <div class="info-box" style="white-space:pre-wrap">${esc(explic)}</div>
-    ${encerrado?`<div class="card" style="text-align:center"><div style="font-size:2rem">🏁</div><h3 style="font-family:'Archivo Black';color:var(--campo);margin:8px 0">Palpites encerrados</h3><p class="section-sub">Este jogo já foi finalizado. Obrigado por participar!</p></div>`:`
-    <div class="card">
+  let corpo;
+  if(finalizado){
+    // jogo apurado: mostra só os ganhadores
+    corpo='<div id="ganhadoresPublico"><div class="loader"><div class="spin"></div>Carregando ganhadores...</div></div>';
+  }else if(fechado){
+    // passou do horário, mas ainda sem resultado lançado
+    corpo=`<div class="card" style="text-align:center"><div style="font-size:2rem">🔒</div><h3 style="font-family:'Archivo Black';color:var(--campo);margin:8px 0">Palpites encerrados</h3><p class="section-sub">O horário do jogo já começou e os palpites foram fechados. Aguarde o resultado para ver os ganhadores!</p></div>`;
+  }else{
+    // aberto: formulário de palpite
+    corpo=`<div class="card">
       <div class="field"><label for="ppNome">Nome completo *</label><input id="ppNome" placeholder="Seu nome" /></div>
       <div class="row2">
         <div class="field"><label for="ppBloco">Bloco</label><input id="ppBloco" placeholder="Ex: B" /></div>
@@ -1449,9 +1463,81 @@ async function abrirPalpitePublico(codigo){
         <div class="hint">Marque um ou mais em cada seleção. Quanto mais goleadores você acertar, melhor no desempate.</div>
       </div>
       <button class="btn btn-gold" id="btnPalpitePublico" onclick="salvarPalpitePublico('${j.id}')">✓ Confirmar palpite</button>
-    </div>`}
+    </div>`;
+  }
+
+  area.innerHTML=`
+    <div class="card" style="text-align:center">
+      <span class="pdv-tag ${j.pdv_temp_nome?'pdv-temp':''}">${esc(pdvNm)}</span>
+      <div class="match">
+        <div class="team"><div class="flag">${flag(j.time_casa)}</div><div class="tname">${esc(j.time_casa)}</div></div>
+        ${finalizado?`<div class="score-final">${j.placar_casa} × ${j.placar_fora}</div>`:`<div class="vs">×</div>`}
+        <div class="team"><div class="flag">${flag(j.time_fora)}</div><div class="tname">${esc(j.time_fora)}</div></div>
+      </div>
+      <div class="game-meta" style="justify-content:center;gap:16px;border-top:none;padding-top:4px">
+        <span>📅 ${fmtData(j.data_jogo)}${j.hora_jogo?' · '+j.hora_jogo:''}</span>
+        <span>🎁 ${j.qtd_kits} kits</span>
+      </div>
+    </div>
+    <div class="info-box" style="white-space:pre-wrap">${esc(explic)}</div>
+    ${corpo}
   `;
-  if(!encerrado)montarBlocosPalpite('ppGol',j);
+  if(!fechado)montarBlocosPalpite('ppGol',j);
+  if(finalizado)renderGanhadoresPublico(j);
+}
+
+/* mostra SÓ os ganhadores (Top kits) na página pública, sem expor todos os palpites */
+async function renderGanhadoresPublico(j){
+  const area=document.getElementById('ganhadoresPublico');
+  if(!area)return;
+  const {data:palps,error}=await sb.from('bolao_palpites').select('*').eq('jogo_id',j.id);
+  if(error){area.innerHTML='<div class="empty">Não foi possível carregar os ganhadores.</div>';return;}
+  const rc=j.placar_casa,rf=j.placar_fora;
+  const resWin=rc>rf?'casa':(rf>rc?'fora':'empate');
+  const goleadores=(j.goleadores||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);
+  const ranked=(palps||[]).map(p=>{
+    let pts=0;
+    const pWin=p.palpite_casa>p.palpite_fora?'casa':(p.palpite_fora>p.palpite_casa?'fora':'empate');
+    if(p.palpite_casa===rc&&p.palpite_fora===rf)pts=3;
+    else if(pWin===resWin)pts=1;
+    let golsAcertados=0;
+    (p.jogador_gol||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean).forEach(g=>{
+      if(goleadores.some(gl=>gl===g))golsAcertados++;
+    });
+    return {...p,pts,golsAcertados};
+  });
+  ranked.sort((a,b)=>{
+    if(b.pts!==a.pts)return b.pts-a.pts;
+    if(b.golsAcertados!==a.golsAcertados)return b.golsAcertados-a.golsAcertados;
+    return new Date(a.created_at)-new Date(b.created_at);
+  });
+  const kits=j.qtd_kits||5;
+  const vencedores=ranked.filter(r=>r.pts>0).slice(0,kits);
+  let html=`<div class="card" style="text-align:center;margin-bottom:14px">
+    <div style="font-size:2rem">🏁</div>
+    <h3 style="font-family:'Archivo Black';color:var(--campo);margin:6px 0">Resultado final</h3>
+    <p class="section-sub">${esc(j.time_casa)} <b>${rc} × ${rf}</b> ${esc(j.time_fora)}</p>
+  </div>`;
+  if(!vencedores.length){
+    html+=`<div class="empty"><div class="emo">🤷</div><p>Ninguém acertou o resultado desta vez.</p></div>`;
+    area.innerHTML=html;return;
+  }
+  html+=`<div class="eyebrow" style="text-align:center">🎁 Ganhadores dos kits</div>
+    <h3 style="font-family:'Archivo Black';color:var(--campo);font-size:1.2rem;text-align:center;margin-bottom:14px">Parabéns!</h3>`;
+  vencedores.forEach((r,i)=>{
+    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+    // mostra só o primeiro nome + inicial do sobrenome, por privacidade
+    const partes=r.nome.trim().split(/\s+/);
+    const nomeCurto = partes.length>1 ? partes[0]+' '+partes[partes.length-1][0]+'.' : partes[0];
+    html+=`<div class="rank-item winner">
+      <div class="rank-pos">${medal}</div>
+      <div class="rank-info"><div class="rank-name">${esc(nomeCurto)}</div>
+        <div class="rank-meta">Palpite: ${r.palpite_casa}×${r.palpite_fora}</div></div>
+      <span class="kit-badge">🎁 Kit</span>
+    </div>`;
+  });
+  html+=`<p class="hint" style="text-align:center;margin-top:14px">Ganhadores: confirmem a retirada do kit no PDV. 🏆</p>`;
+  area.innerHTML=html;
 }
 
 async function loadSelecoesPublico(){
@@ -1471,6 +1557,12 @@ async function salvarPalpitePublico(jogoId){
   if(!tel||tel.replace(/\D/g,'').length<10){toast('Telefone inválido',"err");return;}
   if(casa===''||fora===''){toast('Preencha o placar do palpite',"err");return;}
   const btn=document.getElementById('btnPalpitePublico');btn.disabled=true;btn.textContent='Salvando...';
+  // revalida no servidor: o jogo pode ter fechado enquanto a tela estava aberta
+  const {data:jAtual}=await sb.from('bolao_jogos').select('*').eq('id',jogoId).maybeSingle();
+  if(!jAtual || palpitesFechados(jAtual)){
+    document.getElementById('publicoArea').innerHTML=`<div class="card" style="text-align:center"><div style="font-size:2rem">🔒</div><h3 style="font-family:'Archivo Black';color:var(--campo);margin:8px 0">Palpites encerrados</h3><p class="section-sub">O horário do jogo começou e os palpites foram fechados. Não foi possível registrar seu palpite.</p></div>`;
+    return;
+  }
   const {error}=await sb.from('bolao_palpites').insert({
     jogo_id:jogoId,nome,bloco:bloco||null,apartamento:apto||null,telefone:tel,
     palpite_casa:parseInt(casa),palpite_fora:parseInt(fora),jogador_gol:gol||null
